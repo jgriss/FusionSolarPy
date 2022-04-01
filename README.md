@@ -11,7 +11,7 @@ been tested on any other end-points.
 Simply install from pypi using:
 
 ```bash
-pip install fusion_solar
+pip install fusion_solar_py
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ power production for the current day, and the total energy ever produced
 by the plant.
 
 ```python
-from fusion_solar.client import FusionSolarClient
+from fusion_solar_py.client import FusionSolarClient
 
 # log into the API - with proper credentials...
 client = FusionSolarClient("my_user", "my_password")

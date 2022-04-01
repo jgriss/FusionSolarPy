@@ -4,7 +4,7 @@ import logging
 import requests
 import time
 import simplejson
-from fusion_solar.exceptions import *
+from fusion_solar_py.exceptions import *
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)

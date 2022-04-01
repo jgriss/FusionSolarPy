@@ -3,8 +3,8 @@ import logging
 import json
 import os
 
-from fusion_solar.client import FusionSolarClient
-from fusion_solar.exceptions import *
+from fusion_solar_py.client import FusionSolarClient
+from fusion_solar_py.exceptions import *
 
 
 class FusionSolarClientTest(TestCase):
