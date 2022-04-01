@@ -1,0 +1,6 @@
+test.py
+.vscode
+tests/credentials.json
+dist
+*.egg-info
+__pycache__
