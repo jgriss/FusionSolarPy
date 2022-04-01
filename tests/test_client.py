@@ -2,6 +2,11 @@ from unittest import TestCase
 import logging
 import json
 import os
+import sys
+
+currentdir = os.path.dirname(__file__)
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, os.path.join(parentdir, "src")) 
 
 from fusion_solar_py.client import FusionSolarClient
 from fusion_solar_py.exceptions import *
