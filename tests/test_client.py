@@ -36,7 +36,6 @@ class FusionSolarClientTest(TestCase):
 
     def test_login(self):
         # create a new client instance
-        # TODO: Remove real username and password
         client = FusionSolarClient(self.user, self.password)
 
     def test_failed_login(self):
@@ -48,3 +47,25 @@ class FusionSolarClientTest(TestCase):
         status = client.get_power_status()
 
         self.assertIsNotNone(status.current_power_kw)
+
+    def test_get_plant_stats(self):
+        client = FusionSolarClient(self.user, self.password)
+
+        plant_ids = client.get_plant_ids()
+
+        self.assertIsInstance(plant_ids, list)
+        self.assertTrue(len(plant_ids) > 0)
+
+        self.assertRaises(FusionSolarException, client.get_plant_stats, "1234")
+
+        plant_stats = client.get_plant_stats(plant_ids[0])
+
+        self.assertIsNotNone(plant_stats)
+
+        with open("/tmp/plant_data.json", "w") as writer:
+            json.dump(plant_stats, writer, indent=3)
+
+        # get the last measurements
+        last_data = client.get_last_plant_data(plant_stats)
+
+        self.assertIsNotNone(last_data["productPower"])
