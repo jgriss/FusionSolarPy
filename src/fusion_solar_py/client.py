@@ -4,6 +4,7 @@ import logging
 import requests
 import time
 import simplejson
+from datetime import datetime
 from fusion_solar_py.exceptions import *
 
 # global logger object
@@ -237,19 +238,20 @@ class FusionSolarClient:
 
         if plant_data["existInverter"]:
             (index, value) = self._get_last_value(plant_data["productPower"])
-            extracted_data["productPower"] = {"time": measurement_times[index], "value": value}
+            if index:
+                extracted_data["productPower"] = {"time": measurement_times[index], "value": value}
+            else:
+                extracted_data["productPower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
         else:
             extracted_data["productPower"] = {"time": None, "value": None}
 
         if plant_data["existUsePower"]:
             (index, value) = self._get_last_value(plant_data["usePower"])
-            extracted_data["usePower"] = {"time": measurement_times[index], "value": value}
-        else:
-            extracted_data["usePower"] = {"time": None, "value": None}
-
-        if plant_data["existUsePower"]:
-            (index, value) = self._get_last_value(plant_data["usePower"])
-            extracted_data["usePower"] = {"time": measurement_times[index], "value": value}
+            if index:
+                extracted_data["usePower"] = {"time": measurement_times[index], "value": value}
+            else:
+                # updated data is now
+                extracted_data["usePower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
         else:
             extracted_data["usePower"] = {"time": None, "value": None}
 
