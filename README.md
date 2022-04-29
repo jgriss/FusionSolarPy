@@ -27,6 +27,12 @@ from fusion_solar_py.client import FusionSolarClient
 # log into the API - with proper credentials...
 client = FusionSolarClient("my_user", "my_password")
 
+# NOTE: Depending on your region, you may need to set the
+# `huawei_subdomain` parameter. This is the first part of the
+# URL when you enter the FusionSolar API through your webbrowser
+#
+# client = FusionSolarClient("my_user", "my_password", huawei_subdomai="region01eu5")
+
 # get the stats
 stats = client.get_power_status()
 

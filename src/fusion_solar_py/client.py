@@ -33,7 +33,7 @@ class FusionSolarClient:
     """The main client to interact with the Fusion Solar API
     """
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str, huawei_subdomain: str="region01eu5") -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
 
@@ -43,11 +43,15 @@ class FusionSolarClient:
         :type username: str
         :param password: The password
         :type password: str
+        :param huawei_subdomain: The FusionSolar API uses different subdomains for different regions.
+                                 Adapt this based on the first part of the URL when you access your system.
+        :
         """
         self._user = username
         self._password = password
         self._session = None
         self._parent_id = None
+        self._huawei_subdomain = huawei_subdomain
 
         # login immediately to ensure that the credentials are correct
         self._login()
@@ -59,15 +63,15 @@ class FusionSolarClient:
         :rtype: bool
         """
         login_data = self._send_request(
-            url="https://region01eu5.fusionsolar.huawei.com/unisess/v1/auth/session")
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session")
 
         return isinstance(login_data, dict)
 
     def log_out(self):
         """Log out from the FusionSolarAPI
         """
-        self._send_request("https://region01eu5.fusionsolar.huawei.com/unisess/v1/logout",
-                           {"service": "https://region01eu5.fusionsolar.huawei.com"})
+        self._send_request(f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/logout",
+                           {"service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com"})
 
     def _login(self):
         """Logs into the Fusion Solar API. Raises an exception if the login fails.
@@ -75,11 +79,11 @@ class FusionSolarClient:
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
 
-        url = "https://eu5.fusionsolar.huawei.com/unisso/v2/validateUser.action"
+        url = f"https://{self._huawei_subdomain[8:]}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
 
         params = {
             "decision": 1,
-            "service": "https://region01eu5.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN"
+            "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN"
         }
         json_data = {"organizationName": "",
                      "username": self._user, "password": self._password}
@@ -95,7 +99,7 @@ class FusionSolarClient:
 
         # get the main id
         main_obj = self._send_request(
-            url="https://region01eu5.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
             params={"_": round(time.time() * 1000)})
 
         self._parent_id = main_obj["data"]["moDn"]
@@ -148,7 +152,7 @@ class FusionSolarClient:
         if not self._is_logged_in():
             self._login()
 
-        url = "https://region01eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/station/total-real-kpi"
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/station/total-real-kpi"
         params = {
             "queryTime": round(time.time()) * 1000,
             "timeZone": 1,
@@ -174,7 +178,7 @@ class FusionSolarClient:
         """
         # get the complete object tree
         obj_tree = self._send_request(
-            url="https://region01eu5.fusionsolar.huawei.com/rest/neteco/web/organization/v2/tree", params={
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/tree", params={
                 "parentDn": self._parent_id,
                 "self": "true",
                 "companyTree": "false",
@@ -198,7 +202,7 @@ class FusionSolarClient:
         """
         try:
             plant_data = self._send_request(
-                url="https://region01eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
+                url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
                 params={
                     "stationDn": plant_id,
                     "timeDim": 2,
