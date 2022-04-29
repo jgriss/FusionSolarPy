@@ -3,8 +3,11 @@
 A very basic python client for the HuaweiFusionSolar API used to monitor
 solar power plants.
 
-This client is currently hard-coded to use the https://region01eu5.fusionsolar.huawei.com end point and has not
+This client uses the https://region01eu5.fusionsolar.huawei.com end point by default. It is
+possible to change this using the `huawei_subdomain` parameter. But this has not
 been tested on any other end-points.
+
+Please report any bugs!
 
 ## Installation
 
@@ -69,7 +72,10 @@ plant_data = client.get_plant_stats(plant_ids[0])
 # most recent measurements
 last_values = client.get_last_plant_data(plant_data)
 
-print(f"Last production at {last_values["productPower"]["time"]]}: {last_values["productPower"]["value"]}")
+print(f"Last production at {last_values['productPower']['time']]}: {last_values['productPower']['value']}")
+
+# In case you have a battery installed
+print(f"Last battery charge at {last_values['chargePower']['time']}: {last_values['chargePower']['value']}")
 
 # log out - just in case
 client.log_out()
