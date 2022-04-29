@@ -259,6 +259,16 @@ class FusionSolarClient:
         else:
             extracted_data["usePower"] = {"time": None, "value": None}
 
+        if plant_data["existEnergyStore"]:
+            (index, value) = self._get_last_value(plant_data["chargePower"])
+            if index:
+                extracted_data["chargePower"] = {"time": measurement_times[index], "value": value}
+            else:
+                # updated data is now
+                extracted_data["chargePower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
+        else:
+            extracted_data["chargePower"] = {"time": None, "value": None}
+
         # selfUsePower
         # existEnergyStore - dischargePower
         # radiationDosePower
