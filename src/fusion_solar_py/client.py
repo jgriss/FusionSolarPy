@@ -192,6 +192,33 @@ class FusionSolarClient:
 
         return plant_ids
 
+    def get_plan_flow(self, plant_id: str) -> dict:
+        """Retrieves the data for the energy flow
+        diagram displayed for each plant
+
+        :param plant_id: The plant's id
+        :type plant_id: str
+        :return: The complete data structure as a dict
+        :rtype: dict
+        """
+        # https://region01eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow?stationDn=NE%3D33594051&_=1652469979488
+        try:
+            flow_data = self._send_request(
+                url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow",
+                params={
+                    "stationDn": plant_id,
+                    "_": round(time.time() * 1000)
+
+                })
+        except FusionSolarException as err:
+            raise FusionSolarException(
+                f"Failed to retrieve plant flow for {plant_id}. Please verify the plant id.")
+
+        if not flow_data["success"] or not "data" in flow_data:
+            raise FusionSolarException(f"Failed to retrieve plant flow for {plant_id}")
+
+        return flow_data
+
     def get_plant_stats(self, plant_id: str) -> dict:
         """Retrieves the complete plant usage statistics for the current day.
 

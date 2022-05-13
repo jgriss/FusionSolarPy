@@ -69,3 +69,11 @@ class FusionSolarClientTest(TestCase):
         last_data = client.get_last_plant_data(plant_stats)
 
         self.assertIsNotNone(last_data["productPower"])
+
+        # get the energy flow data structure
+        energy_flow = client.get_plan_flow(plant_id=plant_ids[0])
+
+        self.assertIsNotNone(energy_flow)
+
+        with open("/tmp/plant_flow.json", "w") as writer:
+            json.dump(energy_flow, writer, indent=3)
