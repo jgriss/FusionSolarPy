@@ -15,7 +15,12 @@ _LOGGER = logging.getLogger(__name__)
 class PowerStatus:
     """Class representing the basic power status"""
 
-    def __init__(self, current_power_kw: float, total_power_today_kwh: float, total_power_kwh: float):
+    def __init__(
+        self,
+        current_power_kw: float,
+        total_power_today_kwh: float,
+        total_power_kwh: float,
+    ):
         """Create a new PowerStatus object
         :param current_power_kw: The currently produced power in kW
         :type current_power_kw: float
@@ -28,6 +33,7 @@ class PowerStatus:
         self.total_power_today_kwh = total_power_today_kwh
         self.total_power_kwh = total_power_kwh
 
+
 def logged_in(func):
     """
     Decorator to make sure user is logged in.
@@ -35,14 +41,15 @@ def logged_in(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
         r = self._session.get(url=url)
         try:
-            r.raise_for_status() # will raise HTTPError 
-            r.json() # will raise JSONDecodeError
-        except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError): 
+            r.raise_for_status()  # will raise HTTPError
+            r.json()  # will raise JSONDecodeError
+        except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError):
             self._login()
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -50,7 +57,9 @@ class FusionSolarClient:
     """The main client to interact with the Fusion Solar API
     """
 
-    def __init__(self, username: str, password: str, huawei_subdomain: str="region01eu5") -> None:
+    def __init__(
+        self, username: str, password: str, huawei_subdomain: str = "region01eu5"
+    ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
            The client tests the login credentials as soon as it is initialized
@@ -70,15 +79,17 @@ class FusionSolarClient:
         self._company_id = None
 
         # login immediately to ensure that the credentials are correct
-        self._login() 
-
+        self._login()
 
     def log_out(self):
         """Log out from the FusionSolarAPI
         """
-        self._session.get(url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/logout",
-                          params={"service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com"})
-
+        self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/logout",
+            params={
+                "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com"
+            },
+        )
 
     def _login(self):
         """Logs into the Fusion Solar API. Raises an exception if the login fails.
@@ -89,13 +100,13 @@ class FusionSolarClient:
         url = f"https://{self._huawei_subdomain[8:]}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
         params = {
             "decision": 1,
-            "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN"
+            "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
         }
         json_data = {
             "organizationName": "",
-            "username": self._user, 
-            "password": self._password
-            }
+            "username": self._user,
+            "password": self._password,
+        }
 
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)
@@ -105,19 +116,25 @@ class FusionSolarClient:
         if r.json()["errorCode"]:
             _LOGGER.error(f"Login failed: {r.json()['errorMsg']}")
             raise AuthenticationException(
-                f"Failed to login into FusionSolarAPI: { r.json()['errorMsg'] }")
+                f"Failed to login into FusionSolarAPI: { r.json()['errorMsg'] }"
+            )
 
         # get the main id
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
-            params={"_": round(time.time() * 1000)})
+            params={"_": round(time.time() * 1000)},
+        )
         r.raise_for_status()
         self._company_id = r.json()["data"]["moDn"]
 
         # get the roarand, which is needed for non-GET requests, thus to change device settings
-        r = self._session.get(url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session")
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
+        )
         r.raise_for_status()
-        self._session.headers["roarand"]=r.json()['csrfToken'] # needed for post requests, otherwise it will return 401
+        self._session.headers["roarand"] = r.json()[
+            "csrfToken"
+        ]  # needed for post requests, otherwise it will return 401
 
     @logged_in
     def get_power_status(self) -> PowerStatus:
@@ -130,7 +147,7 @@ class FusionSolarClient:
         params = {
             "queryTime": round(time.time() * 1000),
             "timeZone": 1,
-            "_":  round(time.time() * 1000)
+            "_": round(time.time() * 1000),
         }
 
         r = self._session.get(url=url, params=params)
@@ -140,7 +157,7 @@ class FusionSolarClient:
         power_status = PowerStatus(
             current_power_kw=power_obj["data"]["currentPower"],
             total_power_today_kwh=power_obj["data"]["dailyEnergy"],
-            total_power_kwh=power_obj["data"]["cumulativeEnergy"]
+            total_power_kwh=power_obj["data"]["cumulativeEnergy"],
         )
 
         return power_status
@@ -154,17 +171,18 @@ class FusionSolarClient:
         """
         # get the complete object tree
         r = self._session.get(
-            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/tree", 
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/tree",
             params={
                 "parentDn": self._company_id,
                 "self": "true",
                 "companyTree": "false",
                 "cond": '{"BUSINESS_DEVICE":1,"DOMAIN":1}',
                 "pageId": 1,
-                "_": round(time.time() * 1000)}
+                "_": round(time.time() * 1000),
+            },
         )
         r.raise_for_status()
-        obj_tree=r.json()
+        obj_tree = r.json()
 
         # get the ids
         plant_ids = [obj["elementDn"] for obj in obj_tree[0]["childList"]]
@@ -175,19 +193,19 @@ class FusionSolarClient:
     def get_device_ids(self) -> dict:
         """gets the devices associated to a given parent_id (can be a plant or a company/account)
         returns a dictionary mapping device_type to device_id"""
-        url=f'https://{client._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/config/device/v1/device-list'
-        params={
-            'conditionParams.parentDn':  client._company_id,# can be a plant or company id
-            'conditionParams.mocTypes': '20814,20815,20816,20819,20822,50017,60066,60014,60015,23037', # specifies the types of devices
-            '_': round(time.time() * 1000)
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/config/device/v1/device-list"
+        params = {
+            "conditionParams.parentDn": self._company_id,  # can be a plant or company id
+            "conditionParams.mocTypes": "20814,20815,20816,20819,20822,50017,60066,60014,60015,23037",  # specifies the types of devices
+            "_": round(time.time() * 1000),
         }
-        r = client._session.get(url=url, params=params)
+        r = self._session.get(url=url, params=params)
         r.raise_for_status()
         r.json()
 
-        device_key={}
-        for device in r.json()['data']:
-            device_key[device['mocTypeName']]=device['dn']
+        device_key = {}
+        for device in r.json()["data"]:
+            device_key[device["mocTypeName"]] = device["dn"]
         return device_key
 
     @logged_in
@@ -196,22 +214,24 @@ class FusionSolarClient:
         This can be usefull when electrity prices are
         negative (sunny summer holiday) and you want
         to limit the power that is exported into the grid"""
-        power_setting_options={
-            "No limit":0,
+        power_setting_options = {
+            "No limit": 0,
             "Zero Export Limitation": 5,
             "Limited Power Grid (kW)": 6,
-            "Limited Power Grid (%)": 7}
+            "Limited Power Grid (%)": 7,
+        }
         if power_setting not in power_setting_options:
-            raise ValueError('Unknown power setting')
+            raise ValueError("Unknown power setting")
 
-        device_key= self.get_device_ids()
+        device_key = self.get_device_ids()
 
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/deviceExt/set-config-signals"
-        data = {"dn": device_key['Dongle'], # power control needs to be done in the dongle
-                "changeValues": f'[{{"id":"230190032","value":"{power_setting_options[power_setting]}"}}]' # 230190032 stands for "Active Power Control"
-                } 
-        
-        r = client._session.post(url, data=data)
+        data = {
+            "dn": device_key["Dongle"],  # power control needs to be done in the dongle
+            "changeValues": f'[{{"id":"230190032","value":"{power_setting_options[power_setting]}"}}]',  # 230190032 stands for "Active Power Control"
+        }
+
+        r = self._session.post(url, data=data)
         r.raise_for_status()
 
     @logged_in
@@ -226,14 +246,12 @@ class FusionSolarClient:
         try:
             flow_data = self._session.get(
                 url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow",
-                params={
-                    "stationDn": plant_id,
-                    "_": round(time.time() * 1000)
-
-                })
+                params={"stationDn": plant_id, "_": round(time.time() * 1000)},
+            )
         except FusionSolarException as err:
             raise FusionSolarException(
-                f"Failed to retrieve plant flow for {plant_id}. Please verify the plant id.")
+                f"Failed to retrieve plant flow for {plant_id}. Please verify the plant id."
+            )
 
         if not flow_data["success"] or not "data" in flow_data:
             raise FusionSolarException(f"Failed to retrieve plant flow for {plant_id}")
@@ -256,21 +274,23 @@ class FusionSolarClient:
                     "queryTime": round(time.time() * 1000),
                     "timeZone": 2,  # 1 in no daylight
                     "timeZoneStr": "Europe/Vienna",
-                    "_": round(time.time() * 1000)
-
-                })
+                    "_": round(time.time() * 1000),
+                },
+            )
             r.raise_for_status()
-            plant_data=r.json()
+            plant_data = r.json()
         except FusionSolarException as err:
             raise FusionSolarException(
-                f"Failed to retrieve plant status for {plant_id}. Please verify the plant id.")
+                f"Failed to retrieve plant status for {plant_id}. Please verify the plant id."
+            )
 
         if not plant_data["success"] or not "data" in plant_data:
-            raise FusionSolarException(f"Failed to retrieve plant status for {plant_id}")
+            raise FusionSolarException(
+                f"Failed to retrieve plant status for {plant_id}"
+            )
 
         # return the plant id
         return plant_data["data"]
-
 
     def get_last_plant_data(self, plant_data: dict) -> dict:
         """Extracts the last measurements from the plant data
@@ -290,29 +310,47 @@ class FusionSolarClient:
         if plant_data["existInverter"]:
             (index, value) = self._get_last_value(plant_data["productPower"])
             if index:
-                extracted_data["productPower"] = {"time": measurement_times[index], "value": value}
+                extracted_data["productPower"] = {
+                    "time": measurement_times[index],
+                    "value": value,
+                }
             else:
-                extracted_data["productPower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
+                extracted_data["productPower"] = {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "value": None,
+                }
         else:
             extracted_data["productPower"] = {"time": None, "value": None}
 
         if plant_data["existUsePower"]:
             (index, value) = self._get_last_value(plant_data["usePower"])
             if index:
-                extracted_data["usePower"] = {"time": measurement_times[index], "value": value}
+                extracted_data["usePower"] = {
+                    "time": measurement_times[index],
+                    "value": value,
+                }
             else:
                 # updated data is now
-                extracted_data["usePower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
+                extracted_data["usePower"] = {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "value": None,
+                }
         else:
             extracted_data["usePower"] = {"time": None, "value": None}
 
         if plant_data["existEnergyStore"]:
             (index, value) = self._get_last_value(plant_data["chargePower"])
             if index:
-                extracted_data["chargePower"] = {"time": measurement_times[index], "value": value}
+                extracted_data["chargePower"] = {
+                    "time": measurement_times[index],
+                    "value": value,
+                }
             else:
                 # updated data is now
-                extracted_data["chargePower"] = {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
+                extracted_data["chargePower"] = {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "value": None,
+                }
         else:
             extracted_data["chargePower"] = {"time": None, "value": None}
 
@@ -320,13 +358,12 @@ class FusionSolarClient:
         # existEnergyStore - dischargePower
         # radiationDosePower
         # chargePower
-        # existMeter - 
+        # existMeter -
         # disGridPower
         # usePower
         # existUsePower
 
         return extracted_data
-
 
     def _get_last_value(self, values: list):
         """Get the last valid value from a values array where
@@ -336,12 +373,12 @@ class FusionSolarClient:
         :return: A Tuple with the index and value
         """
         found_value = False
-        
+
         for index, value in enumerate(values):
             if value != "--":
                 found_value = True
 
             if found_value and value == "--":
                 return (index - 1, float(values[index - 1]))
-        
+
         return (None, None)
