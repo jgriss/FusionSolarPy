@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from functools import wraps
 
-# from fusion_solar_py.exceptions import *
+from fusion_solar_py.exceptions import *
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
