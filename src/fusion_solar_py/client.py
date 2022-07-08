@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from functools import wraps
 
-from fusion_solar_py.exceptions import *
+from .exceptions import *
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -41,14 +41,13 @@ def logged_in(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
-        r = self._session.get(url=url)
         try:
-            r.raise_for_status()  # will raise HTTPError
-            r.json()  # will raise JSONDecodeError
+            result = func(self, *args, **kwargs)
         except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError):
+            _LOGGER.info("Logging in")
             self._login()
-        return func(self, *args, **kwargs)
+            result = func(self, *args, **kwargs)
+        return result
 
     return wrapper
 
@@ -201,10 +200,10 @@ class FusionSolarClient:
         }
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
-        r.json()
+        device_data = r.json()
 
         device_key = {}
-        for device in r.json()["data"]:
+        for device in device_data["data"]:
             device_key[device["mocTypeName"]] = device["dn"]
         return device_key
 
@@ -259,37 +258,34 @@ class FusionSolarClient:
         return flow_data
 
     @logged_in
-    def get_plant_stats(self, plant_id: str) -> dict:
+    def get_plant_stats(
+        self, plant_id: str, query_time=round(time.time() * 1000)
+    ) -> dict:
         """Retrieves the complete plant usage statistics for the current day.
         :param plant_id: The plant's id
         :type plant_id: str
         :return: _description_
         """
-        try:
-            r = self._session.get(
-                url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
-                params={
-                    "stationDn": plant_id,
-                    "timeDim": 2,
-                    "queryTime": round(time.time() * 1000),
-                    "timeZone": 2,  # 1 in no daylight
-                    "timeZoneStr": "Europe/Vienna",
-                    "_": round(time.time() * 1000),
-                },
-            )
-            r.raise_for_status()
-            plant_data = r.json()
-        except FusionSolarException as err:
-            raise FusionSolarException(
-                f"Failed to retrieve plant status for {plant_id}. Please verify the plant id."
-            )
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
+            params={
+                "stationDn": plant_id,
+                "timeDim": 2,
+                "queryTime": query_time,
+                "timeZone": 2,  # 1 in no daylight
+                "timeZoneStr": "Europe/Vienna",
+                "_": round(time.time() * 1000),
+            },
+        )
+        r.raise_for_status()
+        plant_data = r.json()
 
         if not plant_data["success"] or not "data" in plant_data:
             raise FusionSolarException(
                 f"Failed to retrieve plant status for {plant_id}"
             )
 
-        # return the plant id
+        # return the plant data
         return plant_data["data"]
 
     def get_last_plant_data(self, plant_data: dict) -> dict:
