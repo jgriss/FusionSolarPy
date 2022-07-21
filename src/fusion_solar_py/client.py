@@ -5,6 +5,7 @@ import requests
 import time
 from datetime import datetime
 from functools import wraps
+import json
 
 from .exceptions import *
 
@@ -43,7 +44,7 @@ def logged_in(func):
     def wrapper(self, *args, **kwargs):
         try:
             result = func(self, *args, **kwargs)
-        except (requests.exceptions.JSONDecodeError, requests.exceptions.HTTPError):
+        except (json.JSONDecodeError, requests.exceptions.HTTPError):
             _LOGGER.info("Logging in")
             self._login()
             result = func(self, *args, **kwargs)
@@ -242,15 +243,13 @@ class FusionSolarClient:
         :return: The complete data structure as a dict
         """
         # https://region01eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow?stationDn=NE%3D33594051&_=1652469979488
-        try:
-            flow_data = self._session.get(
-                url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow",
-                params={"stationDn": plant_id, "_": round(time.time() * 1000)},
-            )
-        except FusionSolarException as err:
-            raise FusionSolarException(
-                f"Failed to retrieve plant flow for {plant_id}. Please verify the plant id."
-            )
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-flow",
+            params={"stationDn": plant_id, "_": round(time.time() * 1000)},
+        )
+
+        r.raise_for_status()
+        flow_data = r.json()
 
         if not flow_data["success"] or not "data" in flow_data:
             raise FusionSolarException(f"Failed to retrieve plant flow for {plant_id}")
