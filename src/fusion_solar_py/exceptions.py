@@ -16,7 +16,3 @@ class AuthenticationException(FusionSolarException):
     :type FusionSolarException: _type_
     """
     pass
-
-class RequestException(FusionSolarException):
-    """Issues where a HTTP request failed"""
-    pass

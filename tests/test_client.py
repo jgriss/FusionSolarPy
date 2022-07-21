@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import sys
+import requests
 
 currentdir = os.path.dirname(__file__)
 parentdir = os.path.dirname(currentdir)
@@ -33,30 +34,31 @@ class FusionSolarClientTest(TestCase):
 
             self.user = cred_data["username"]
             self.password = cred_data["password"]
+            self.subdomain = cred_data.get('subdomain', "region01eu5")
 
     def test_login(self):
         # create a new client instance
-        client = FusionSolarClient(self.user, self.password)
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
 
     def test_failed_login(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, "asda", "asda")
 
     def test_status(self):
-        client = FusionSolarClient(self.user, self.password)
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
 
         status = client.get_power_status()
 
         self.assertIsNotNone(status.current_power_kw)
 
     def test_get_plant_stats(self):
-        client = FusionSolarClient(self.user, self.password)
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
 
         plant_ids = client.get_plant_ids()
 
         self.assertIsInstance(plant_ids, list)
         self.assertTrue(len(plant_ids) > 0)
 
-        self.assertRaises(FusionSolarException, client.get_plant_stats, "1234")
+        self.assertRaises(requests.exceptions.HTTPError, client.get_plant_stats, "1234")
 
         plant_stats = client.get_plant_stats(plant_ids[0])
 
@@ -71,7 +73,7 @@ class FusionSolarClientTest(TestCase):
         self.assertIsNotNone(last_data["productPower"])
 
         # get the energy flow data structure
-        energy_flow = client.get_plan_flow(plant_id=plant_ids[0])
+        energy_flow = client.get_plant_flow(plant_id=plant_ids[0])
 
         self.assertIsNotNone(energy_flow)
 
