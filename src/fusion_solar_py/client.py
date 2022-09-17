@@ -258,13 +258,23 @@ class FusionSolarClient:
 
     @logged_in
     def get_plant_stats(
-        self, plant_id: str, query_time=round(time.time() * 1000)
+        self, plant_id: str, query_time: int=None
     ) -> dict:
         """Retrieves the complete plant usage statistics for the current day.
         :param plant_id: The plant's id
         :type plant_id: str
+        :param query_time: If set, must be set to 00:00:00 of the day the data should
+                           be fetched for. If not set, retrieves the data for the 
+                           current day.
+        :type query_time: int
         :return: _description_
         """
+        # set the query time to today
+        if not query_time:
+            start_today = time.strftime("%Y-%m-%d 00:00:00", time.gmtime())
+            struct_time = time.strptime(start_today, "%Y-%m-%d %H:%M:%S")
+            query_time = round(time.mktime(struct_time) * 1000)
+
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
             params={
