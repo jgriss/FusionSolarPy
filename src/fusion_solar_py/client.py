@@ -164,30 +164,50 @@ class FusionSolarClient:
 
     @logged_in
     def get_plant_ids(self) -> list:
-        """Get the ids of all available plants linked
+        """Get the ids of all available stations linked
            to this account
         :return: A list of plant ids (strings)
         :rtype: list
         """
         # get the complete object tree
-        r = self._session.get(
-            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/tree",
-            params={
-                "parentDn": self._company_id,
-                "self": "true",
-                "companyTree": "false",
-                "cond": '{"BUSINESS_DEVICE":1,"DOMAIN":1}',
-                "pageId": 1,
-                "_": round(time.time() * 1000),
-            },
-        )
-        r.raise_for_status()
-        obj_tree = r.json()
+        station_list = self.get_station_list()
 
         # get the ids
-        plant_ids = [obj["elementDn"] for obj in obj_tree[0]["childList"]]
+        plant_ids = [obj["dn"] for obj in station_list]
 
         return plant_ids
+
+    @logged_in
+    def get_station_list(self) -> list:
+        """Get the list of available PV stations.
+
+        :return: _description_
+        :rtype: list
+        """
+        # get the complete list
+        r = self._session.post(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/station/station-list",
+            json={
+                "curPage":1,
+                "pageSize":10,
+                "gridConnectedTime":"",
+                "queryTime": self._get_day_start_sec(),
+                "timeZone":2,
+                "sortId":"createTime",
+                "sortDir":"DESC",
+                "locale":"en_US"
+            }
+        )
+        r.raise_for_status()
+
+        obj_tree = r.json()
+
+        if not obj_tree["success"]:
+            raise FusionSolarException("Failed to retrieve station list")
+
+        # simply return the original object list
+        return obj_tree["data"]["list"]
+
 
     @logged_in
     def get_device_ids(self) -> dict:
@@ -271,9 +291,7 @@ class FusionSolarClient:
         """
         # set the query time to today
         if not query_time:
-            start_today = time.strftime("%Y-%m-%d 00:00:00", time.gmtime())
-            struct_time = time.strptime(start_today, "%Y-%m-%d %H:%M:%S")
-            query_time = round(time.mktime(struct_time) * 1000)
+            query_time = self._get_day_start_sec()
 
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance",
@@ -387,3 +405,16 @@ class FusionSolarClient:
                 return (index - 1, float(values[index - 1]))
 
         return (None, None)
+
+    def _get_day_start_sec(self) -> int:
+        """Return the start of the current day in seconds since
+           epoche.
+
+        :return: The start of the day ("00:00:00") in seconds
+        :rtype: int
+        """
+        start_today = time.strftime("%Y-%m-%d 00:00:00", time.gmtime())
+        struct_time = time.strptime(start_today, "%Y-%m-%d %H:%M:%S")
+        seconds = round(time.mktime(struct_time) * 1000)
+
+        return seconds

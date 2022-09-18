@@ -79,3 +79,14 @@ class FusionSolarClientTest(TestCase):
 
         with open("/tmp/plant_flow.json", "w") as writer:
             json.dump(energy_flow, writer, indent=3)
+
+    def test_get_station_list(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        station_list = client.get_station_list()
+
+        self.assertIsInstance(station_list, list)
+        self.assertTrue(len(station_list) > 0)
+
+        with open("/tmp/station_list.json", "w") as writer:
+            json.dump(station_list, writer, indent=3)
