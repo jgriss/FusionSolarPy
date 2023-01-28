@@ -1,3 +1,9 @@
+# 0.0.8
+
+  * Fixed bugs that prevented meter data to be correctly added to the plant stats
+  * Added additional combined statistics to the plant stats
+  * Updated the README to show new features
+
 # 0.0.7
 
   * Added a new function `get_station_list` that returns detailed info about all installed

@@ -342,10 +342,13 @@ class FusionSolarClient:
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "value": None,
                 }
+
+            extracted_data["totalPower"] = plant_data["totalProductPower"]
         else:
             extracted_data["productPower"] = {"time": None, "value": None}
+            extracted_data["totalPower"] = None
 
-        if plant_data["existUsePower"]:
+        if plant_data["totalUsePower"] != "--":
             (index, value) = self._get_last_value(plant_data["usePower"])
             if index:
                 extracted_data["usePower"] = {
@@ -358,8 +361,17 @@ class FusionSolarClient:
                     "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "value": None,
                 }
+
+            extracted_data["totalUsePower"] = plant_data["totalUsePower"]
+            extracted_data["totalSelfUsePower"] = plant_data["totalSelfUsePower"]
+            extracted_data["buyPowerRatio"] = plant_data["buyPowerRatio"]
+            extracted_data["totalOnGridPower"] = plant_data["totalOnGridPower"]
         else:
             extracted_data["usePower"] = {"time": None, "value": None}
+            extracted_data["totalUsePower"] = None
+            extracted_data["totalSelfUsePower"] = None
+            extracted_data["buyPowerRatio"] = None
+            extracted_data["totalOnGridPower"] = None
 
         if plant_data["existEnergyStore"]:
             (index, value) = self._get_last_value(plant_data["chargePower"])

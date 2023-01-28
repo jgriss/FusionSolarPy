@@ -72,10 +72,16 @@ plant_data = client.get_plant_stats(plant_ids[0])
 # most recent measurements
 last_values = client.get_last_plant_data(plant_data)
 
-print(f"Last production at {last_values['productPower']['time']]}: {last_values['productPower']['value']}")
+print(f"Last production at {last_values['productPower']['time']}: {last_values['productPower']['value']}")
 
 # In case you have a battery installed
 print(f"Last battery charge at {last_values['chargePower']['time']}: {last_values['chargePower']['value']}")
+
+# Additionally, if you have a meter installed you can get additional statistics
+print(f"Total power consumption (today): {last_values['totalUsePower']} kWh")
+print(f"Total produced power (today): {last_values['totalPower']} kWh")
+print(f"Produced power consumed (today): {last_values['totalSelfUsePower']} kWh")
+print(f"Relative amount of used power bought from grid: {last_values['buyPowerRatio']}%")
 
 # log out - just in case
 client.log_out()
