@@ -125,6 +125,15 @@ class FusionSolarClient:
             params={"_": round(time.time() * 1000)},
         )
         r.raise_for_status()
+
+        response_data = r.json()
+
+        if "data" not in response_data:
+            _LOGGER.error(f"Failed to retrieve data object. {json.dumps(response_data)}")
+            raise AuthenticationException(
+                f"Failed to login into FusionSolarAPI."
+            )
+
         self._company_id = r.json()["data"]["moDn"]
 
         # get the roarand, which is needed for non-GET requests, thus to change device settings
