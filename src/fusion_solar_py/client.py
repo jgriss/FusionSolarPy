@@ -344,7 +344,7 @@ class FusionSolarClient:
             if index:
                 extracted_data["productPower"] = {
                     "time": measurement_times[index],
-                    "value": value,
+                    "value": float(value),
                 }
             else:
                 extracted_data["productPower"] = {
@@ -352,7 +352,7 @@ class FusionSolarClient:
                     "value": None,
                 }
 
-            extracted_data["totalPower"] = plant_data["totalProductPower"]
+            extracted_data["totalPower"] = float(plant_data["totalProductPower"])
         else:
             extracted_data["productPower"] = {"time": None, "value": None}
             extracted_data["totalPower"] = None
@@ -362,7 +362,7 @@ class FusionSolarClient:
             if index:
                 extracted_data["usePower"] = {
                     "time": measurement_times[index],
-                    "value": value,
+                    "value": float(value),
                 }
             else:
                 # updated data is now
@@ -371,16 +371,16 @@ class FusionSolarClient:
                     "value": None,
                 }
 
-            extracted_data["totalUsePower"] = plant_data["totalUsePower"]
-            extracted_data["totalSelfUsePower"] = plant_data["totalSelfUsePower"]
-            extracted_data["buyPowerRatio"] = plant_data["buyPowerRatio"]
-            extracted_data["totalOnGridPower"] = plant_data["totalOnGridPower"]
+            extracted_data["totalUsePower"]     = float(plant_data["totalUsePower"])
+            extracted_data["totalSelfUsePower"] = float(plant_data["totalSelfUsePower"])
+            extracted_data["buyPowerRatio"]     = float(plant_data["buyPowerRatio"])
+            extracted_data["totalOnGridPower"]  = float(plant_data["totalOnGridPower"])
         else:
-            extracted_data["usePower"] = {"time": None, "value": None}
-            extracted_data["totalUsePower"] = None
+            extracted_data["usePower"]          = {"time": None, "value": None}
+            extracted_data["totalUsePower"]     = None
             extracted_data["totalSelfUsePower"] = None
-            extracted_data["buyPowerRatio"] = None
-            extracted_data["totalOnGridPower"] = None
+            extracted_data["buyPowerRatio"]     = None
+            extracted_data["totalOnGridPower"]  = None
 
         if plant_data["existEnergyStore"]:
             (index, value) = self._get_last_value(plant_data["chargePower"])

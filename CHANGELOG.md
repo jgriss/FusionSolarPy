@@ -1,3 +1,7 @@
+# 0.0.9
+
+  * Adapted `get_last_plant_data` to return `float` instead of strings
+
 # 0.0.8
 
   * Fixed bugs that prevented meter data to be correctly added to the plant stats
