@@ -1,3 +1,7 @@
+# 0.0.10
+
+  * Added additional values to `get_last_plant_data`
+
 # 0.0.9
 
   * Adapted `get_last_plant_data` to return `float` instead of strings
