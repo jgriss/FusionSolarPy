@@ -1,3 +1,8 @@
+# 0.0.11
+
+  * Improved documentation of returned values
+  * Improved `get_last_plant_data` to include all available values
+
 # 0.0.10
 
   * Added additional values to `get_last_plant_data`

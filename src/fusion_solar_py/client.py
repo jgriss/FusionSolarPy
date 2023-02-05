@@ -339,89 +339,44 @@ class FusionSolarClient:
         # initialize the extracted data
         extracted_data = {}
 
-        if plant_data["existInverter"]:
-            (index, value) = self._get_last_value(plant_data["productPower"])
-            if index:
-                extracted_data["productPower"] = {
-                    "time": measurement_times[index],
-                    "value": float(value),
-                }
-            else:
-                extracted_data["productPower"] = {
-                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "value": None,
-                }
+        # process the complete data
+        for key_name in plant_data.keys():
+            try:
+                # fields to ignore
+                if key_name in ("xAxis", "stationTimezone", "clientTimezone", "stationDn"):
+                    continue
 
-            extracted_data["totalPower"] = float(plant_data["totalProductPower"])
-        else:
-            extracted_data["productPower"] = {"time": None, "value": None}
-            extracted_data["totalPower"] = None
+                key_value = plant_data[key_name]
 
-        if plant_data["totalUsePower"] != "--":
-            for field_id in ("usePower", "onGridPower", "selfUsePower"):
-                (index, value) = self._get_last_value(plant_data[field_id])
-                if index:
-                    extracted_data[field_id] = {
-                        "time": measurement_times[index],
-                        "value": float(value),
-                    }
+                if type(key_value) is list:
+                    extracted_data[key_name] = self._get_last_value(key_value, measurement_times)
+
+                # Missing data
+                elif key_value == "--":
+                    extracted_data[key_name] = None
+
+                # Boolean
+                elif key_name.startswith("exist"):
+                    extracted_data[key_name] = bool(key_value)
+
+                # should be numeric
                 else:
-                    # updated data is now
-                    extracted_data[field_id] = {
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        "value": None,
-                    }
-
-            extracted_data["totalBuyPower"]     = float(plant_data["totalBuyPower"])
-            extracted_data["totalSelfUsePower"] = float(plant_data["totalSelfUsePower"])
-            extracted_data["totalUsePower"]     = float(plant_data["totalUsePower"])
-            extracted_data["totalSelfUsePower"] = float(plant_data["totalSelfUsePower"])
-            extracted_data["buyPowerRatio"]     = float(plant_data["buyPowerRatio"])
-            extracted_data["totalOnGridPower"]  = float(plant_data["totalOnGridPower"])
-            extracted_data["selfUsePowerRatioByProduct"] = float(plant_data["selfUsePowerRatioByProduct"])
-        else:
-            extracted_data["usePower"]          = {"time": None, "value": None}
-            extracted_data["totalBuyPower"]     = None
-            extracted_data["totalUsePower"]     = None
-            extracted_data["totalSelfUsePower"] = None
-            extracted_data["buyPowerRatio"]     = None
-            extracted_data["totalOnGridPower"]  = None
-            extracted_data["selfUsePowerRatioByProduct"] = None
-            extracted_data["totalSelfUsePower"] = None
-
-        if plant_data["existEnergyStore"]:
-            (index, value) = self._get_last_value(plant_data["chargePower"])
-            if index:
-                extracted_data["chargePower"] = {
-                    "time": measurement_times[index],
-                    "value": value,
-                }
-            else:
-                # updated data is now
-                extracted_data["chargePower"] = {
-                    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "value": None,
-                }
-        else:
-            extracted_data["chargePower"] = {"time": None, "value": None}
-
-        # selfUsePower
-        # existEnergyStore - dischargePower
-        # radiationDosePower
-        # chargePower
-        # existMeter -
-        # disGridPower
-        # usePower
-        # existUsePower
+                    extracted_data[key_name] = float(key_value)
+            # if anything goes wrong, simply store "None" as value
+            except Exception as e:
+                _LOGGER.debug(f"Failed to parse {key_name} = {key_value}")
+                extracted_data[key_name] = None
 
         return extracted_data
 
-    def _get_last_value(self, values: list):
+    def _get_last_value(self, values: list, measurement_times: list):
         """Get the last valid value from a values array where
            missing values are stored as '--'
         :param values: The list of values
         :type values: list
-        :return: A Tuple with the index and value
+        :param measurement_times: The list of matching timepoints
+        :type values: list
+        :return: A dict with a "value" and "timepoint"
         """
         found_value = False
 
@@ -430,9 +385,14 @@ class FusionSolarClient:
                 found_value = True
 
             if found_value and value == "--":
-                return (index - 1, float(values[index - 1]))
+                return {"time": measurement_times[index - 1], "value": float(values[index - 1])}
 
-        return (None, None)
+        # if it's the last value
+        if found_value:
+            return {"time": measurement_times[index], "value": float(values[index])}
+
+        # If nothing is found return "None" for the current time
+        return {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
 
     def _get_day_start_sec(self) -> int:
         """Return the start of the current day in seconds since

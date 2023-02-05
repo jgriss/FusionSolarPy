@@ -86,3 +86,49 @@ print(f"Relative amount of used power bought from grid: {last_values['buyPowerRa
 # log out - just in case
 client.log_out()
 ```
+
+## Available plant data / stats
+
+This is a list of variables and a (guessed) explanation of what they mean returnd from
+`get_plant_stats` and as an abbreviated version by `get_last_plant_data`.
+
+### Total values
+
+These values are always the total (in kWh) for the current day:
+
+  * **totalSelfUsePower**: Total kWh of the current day's production used.
+  * **selfProvide**: Total kWh of the current day's production used (same as above).
+  * **totalBuyPower**: Total kWh bought from the grid today.
+  * **totalProductPower**: Total kWh produced by the PV today.
+  * **totalUsePower**: Total kWh used today.
+  * **totalOnGridPower**: Total kWh returned to the grid today.
+
+### Ratios
+
+Ratios are given in percent (f.e. "35.93" for a ratio of 0.3593)
+
+  * **onGridPowerRatio**: Proportion of today's PV production returned to the grid.
+  * **buyPowerRatio**: Proportion of power consumed today that was bought from the grid.
+  * **selfUsePowerRatioByProduct**: Proportion of produced power used.
+
+### Logicals
+
+  * **existInverter**: (Boolean) Set if an inverter (ie a PV plant) is installed
+  * **existCharge**: (Boolean) - Maybe true if currently charging.
+  * **existMeter**: (Boolean) Set if a meter is installed.
+  * **existEnergyStore**: (Boolean) - Maybe true if a storage is installed.
+  * **existUsePower**: (Boolean) - Maybe true if the own power is used.
+
+### Timecourses
+
+These are returned as lists of values. The matching timepoints are found in the
+`xAxis` list. `get_last_plant_data` returns these values as a dict with the key
+`time` and `value` representing the last valid measurement (ie. not "--").
+
+  * **selfUsePower**: Amount of energy produced by the PV used.
+  * **dischargePower**: Amounf of energy discharged from the storage.
+  * **chargePower**: Amount of energy charged into the storage.
+  * **onGridPower**: (Probably) The amount of power returned to the grid.
+  * **disGridPower**: (Probably) The amount of power taken from the grid.
+  * **productPower**: Amounf of power produced by the PV.
+  * **usePower**: Amount of power used.
