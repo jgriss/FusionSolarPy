@@ -1,3 +1,7 @@
+# 0.0.12
+
+  * Explicitly catch incorrect subdomain
+
 # 0.0.11
 
   * Improved documentation of returned values
