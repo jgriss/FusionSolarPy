@@ -18,6 +18,7 @@ jobs:
       - name: Install build system
         run: |
           python -m pip install --upgrade pip
+          pip install setuptools
           python3 -m build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
