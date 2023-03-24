@@ -1,3 +1,6 @@
+[![Test Package](https://github.com/jgriss/FusionSolarPy/actions/workflows/test.yaml/badge.svg)](https://github.com/jgriss/FusionSolarPy/actions/workflows/test.yaml)
+[![PyPI version](https://badge.fury.io/py/fusion_solar_py.svg)](https://badge.fury.io/py/fusion_solar_py)
+
 # FusionSolarPy
 
 A very basic python client for the HuaweiFusionSolar API used to monitor
