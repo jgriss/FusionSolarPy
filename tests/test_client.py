@@ -20,21 +20,26 @@ class FusionSolarClientTest(TestCase):
         # load the credentials
         cred_filename = os.path.join(os.path.dirname(__file__), "credentials.json")
 
-        if not os.path.exists(cred_filename):
+        if os.path.exists(cred_filename):
+            # load the file
+            with open(cred_filename, "r") as reader:
+                cred_data = json.load(reader)
+
+                if "username" not in cred_data or "password" not in cred_data:
+                    raise Exception("Invalid 'credentials.json' file. Must contain 'username' and 'password.")
+
+                self.user = cred_data["username"]
+                self.password = cred_data["password"]
+                self.subdomain = cred_data.get('subdomain', "region01eu5")
+        # check if the credentials are available as environment variables (GitHub actions)
+        elif os.environ["TEST_USER"]:
+            self.user = os.environ.get("TEST_USER")
+            self.password = os.environ.get("TEST_PASSWORD")
+            self.subdomain = "region01eu5"
+        else:
             raise Exception("Tests require a 'credentials.json' file in the 'tests' directory. "
                             "This file must contain a dict with a 'username' and 'password' which "
-                            "which are used to test the HuaweiFusionSolar API.")
-
-        # load the file
-        with open(cred_filename, "r") as reader:
-            cred_data = json.load(reader)
-
-            if "username" not in cred_data or "password" not in cred_data:
-                raise Exception("Invalid 'credentials.json' file. Must contain 'username' and 'password.")
-
-            self.user = cred_data["username"]
-            self.password = cred_data["password"]
-            self.subdomain = cred_data.get('subdomain', "region01eu5")
+                            "which are used to test the HuaweiFusionSolar API.")      
 
     def test_login(self):
         # create a new client instance
