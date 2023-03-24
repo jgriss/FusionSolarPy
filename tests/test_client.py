@@ -17,6 +17,9 @@ class FusionSolarClientTest(TestCase):
     def setUp(self) -> None:
         logging.basicConfig(level=logging.DEBUG)
 
+        # disable logging for urllib
+        logging.getLogger("urllib3").setLevel(logging.ERROR)
+
         # load the credentials
         cred_filename = os.path.join(os.path.dirname(__file__), "credentials.json")
 
