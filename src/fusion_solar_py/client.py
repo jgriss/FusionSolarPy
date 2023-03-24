@@ -126,6 +126,12 @@ class FusionSolarClient:
         )
         r.raise_for_status()
 
+        # catch an incorrect subdomain
+        response_text = r.content.decode()
+
+        if not response_text.strip().startswith("{\"data\":"):
+            raise AuthenticationException("Invalid response received. Please check the correct Huawei subdomain.")
+
         response_data = r.json()
 
         if "data" not in response_data:

@@ -101,3 +101,6 @@ class FusionSolarClientTest(TestCase):
 
         with open("/tmp/station_list.json", "w") as writer:
             json.dump(station_list, writer, indent=3)
+
+    def test_incorrect_subdomain(self):
+        self.assertRaises(AuthenticationException, FusionSolarClient, self.user, self.password, "region04eu5")
