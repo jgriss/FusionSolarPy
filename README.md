@@ -86,6 +86,12 @@ print(f"Total produced power (today): {last_values['totalPower']} kWh")
 print(f"Produced power consumed (today): {last_values['totalSelfUsePower']} kWh")
 print(f"Relative amount of used power bought from grid: {last_values['buyPowerRatio']}%")
 
+# print all optimizer stats
+for x in client.get_optimizer_stats(client.get_device_ids()['Inverter']):
+    print(f"{x['optName']}: {x['moStatus']} {x['runningStatus']}: {x['outputPower']} W /" +
+          f" {x['inputVoltage']} V / {x['inputCurrent']} A / {x['temperature']} C")
+
+
 # log out - just in case
 client.log_out()
 ```

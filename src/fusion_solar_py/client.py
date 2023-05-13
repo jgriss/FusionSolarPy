@@ -412,3 +412,31 @@ class FusionSolarClient:
         seconds = round(time.mktime(struct_time) * 1000)
 
         return seconds
+
+    @logged_in
+    def get_optimizer_stats(
+        self, inverter_id: str
+    ) -> dict:
+        """Retrieves the complete list of optimizers and returns real time stats.
+
+        :param inverter_id: The inverter ID
+        :type plant_id: str
+        :return: _description_
+        """
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/layout/optimizer-info",
+            params={
+                "inverterDn": inverter_id,
+                "_": round(time.time() * 1000),
+            },
+        )
+        r.raise_for_status()
+        optimizer_data = r.json()
+
+        if not optimizer_data["success"] or not "data" in optimizer_data:
+            raise FusionSolarException(
+                f"Failed to retrieve plant status for {inverter_id}"
+            )
+
+        # return the plant data
+        return optimizer_data["data"]
