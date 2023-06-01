@@ -91,6 +91,14 @@ class FusionSolarClientTest(TestCase):
         with open("/tmp/plant_flow.json", "w") as writer:
             json.dump(energy_flow, writer, indent=3)
 
+        # get the device ids
+        device_ids = client.get_device_ids()
+
+        self.assertIsNotNone(device_ids["Inverter"])
+
+        # test optimizer data
+        optimizer_data = client.get_optimizer_stats(inverter_id=device_ids["Inverter"])
+
     def test_get_station_list(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
 
