@@ -37,7 +37,7 @@ client = FusionSolarClient("my_user", "my_password")
 # `huawei_subdomain` parameter. This is the first part of the
 # URL when you enter the FusionSolar API through your webbrowser
 #
-# client = FusionSolarClient("my_user", "my_password", huawei_subdomai="region01eu5")
+# client = FusionSolarClient("my_user", "my_password", huawei_subdomain="region01eu5")
 
 # get the stats
 stats = client.get_power_status()
