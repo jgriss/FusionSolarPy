@@ -384,21 +384,19 @@ class FusionSolarClient:
         :type values: list
         :return: A dict with a "value" and "timepoint"
         """
-        found_value = False
+        # add all found values in a list
+        found_values = list()
 
         for index, value in enumerate(values):
             if value != "--":
-                found_value = True
-
-            if found_value and value == "--":
-                return {"time": measurement_times[index - 1], "value": float(values[index - 1])}
+                found_values.append({"time": measurement_times[index], "value": float(values[index])})
 
         # if it's the last value
-        if found_value:
-            return {"time": measurement_times[index], "value": float(values[index])}
-
-        # If nothing is found return "None" for the current time
-        return {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
+        if len(found_values) > 0:
+            return found_values[-1]
+        else:
+            # If nothing is found return "None" for the current time
+            return {"time": datetime.now().strftime("%Y-%m-%d %H:%M"), "value": None}
 
     def _get_day_start_sec(self) -> int:
         """Return the start of the current day in seconds since
