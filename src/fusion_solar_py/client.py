@@ -97,7 +97,13 @@ class FusionSolarClient:
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
 
-        url = f"https://{self._huawei_subdomain[8:]}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
+        # adapt the login subdomain - needs separate handling for "intl"
+        if self._huawei_subdomain.startswith("region"):
+            login_subdomain = self._huawei_subdomain[8:]
+        else:
+            login_subdomain = self._huawei_subdomain
+
+        url = f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
         params = {
             "decision": 1,
             "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",

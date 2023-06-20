@@ -1,3 +1,7 @@
+# 0.0.14
+
+  * Fixed login issue with subdomain "intl"
+
 # 0.0.13
 
   * Added function `get_optimizer_stats` to retrieve optimizer data (thanks to @Miouge1)
