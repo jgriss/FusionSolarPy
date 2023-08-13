@@ -7,8 +7,8 @@ from tensorflow.keras import layers
 # Mapping characters to integers
 char_to_num = layers.StringLookup(
     vocabulary=list(
-        ['2', '3', '4', '5', '6', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 
-        'g', 'h', 'l', 'r', 't', 'y']
+        ['2', '3', '4', '5', '6', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+         'g', 'h', 'l', 'r', 't', 'y']
     ), mask_token=None
 )
 
@@ -40,43 +40,43 @@ class CTCLayer(layers.Layer):
 
         # At test time, just return the computed predictions
         return y_pred
-    
-
-def decode_batch_predictions(pred):
-    input_len = np.ones(pred.shape[0]) * pred.shape[1]
-    # Use greedy search. For complex tasks, you can use beam search
-    results = keras.backend.ctc_decode(pred, input_length=input_len, greedy=True)[0][0][
-        :, :max_length
-    ]
-    # Iterate over the results and get back the text
-    output_text = []
-    for res in results:
-        res = tf.strings.reduce_join(num_to_char(res)).numpy().decode("utf-8")
-        output_text.append(res)
-    return output_text
 
 
-def preprocess_image(img):
-    if len(img.shape) == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img = img / 255.0
-    # swap axis
-    img = np.swapaxes(img, 0, 1)
-    img = np.expand_dims(img, axis=2)
-    return img
+class Solver():
+    def __init__(self, weights_path):
+        self.model = keras.models.load_model(weights_path, custom_objects={"CTCLayer": CTCLayer})
+        self.prediction_model = keras.models.Model(
+            self.model.get_layer(name="image").input, self.model.get_layer(name="dense2").output
+        )
 
+    def solve_captcha(self, img):
+        if type(img) != np.ndarray:
+            img = np.frombuffer(img, np.uint8)
+            img = cv2.imdecode(img, cv2.IMREAD_GRAYSCALE)
+        img = self.preprocess_image(img)
+        img = tf.expand_dims(img, 0)
+        pred = self.prediction_model.predict(img)
+        pred_text = self.decode_batch_predictions(pred)
+        return pred_text[0]
 
-def solve_captcha(img):
-    if type(img) != np.ndarray:
-        img = np.frombuffer(img, np.uint8)
-        img = cv2.imdecode(img, cv2.IMREAD_GRAYSCALE)
-    img = preprocess_image(img)
-    img = tf.expand_dims(img, 0)
-    pred = prediction_model.predict(img)
-    pred_text = decode_batch_predictions(pred)
-    return pred_text[0]
-    
-model = keras.models.load_model("captcha_huawei.h5", custom_objects={"CTCLayer": CTCLayer})
-prediction_model = keras.models.Model(
-    model.get_layer(name="image").input, model.get_layer(name="dense2").output
-)
+    def decode_batch_predictions(self, pred):
+        input_len = np.ones(pred.shape[0]) * pred.shape[1]
+        # Use greedy search. For complex tasks, you can use beam search
+        results = keras.backend.ctc_decode(pred, input_length=input_len, greedy=True)[0][0][
+            :, :max_length
+        ]
+        # Iterate over the results and get back the text
+        output_text = []
+        for res in results:
+            res = tf.strings.reduce_join(num_to_char(res)).numpy().decode("utf-8")
+            output_text.append(res)
+        return output_text
+
+    def preprocess_image(self, img):
+        if len(img.shape) == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = img / 255.0
+        # swap axis
+        img = np.swapaxes(img, 0, 1)
+        img = np.expand_dims(img, axis=2)
+        return img

@@ -9,7 +9,7 @@ from functools import wraps
 import bs4
 import requests
 
-from .captcha_solver import solve_captcha
+from .captcha_solver import Solver
 from .exceptions import AuthenticationException, FusionSolarException
 
 # global logger object
@@ -64,8 +64,8 @@ class FusionSolarClient:
     """
 
     def __init__(
-        self, username: str, password: str, huawei_subdomain: str = "region01eu5", 
-        session: requests.Session = None, verify_code: str = None
+        self, username: str, password: str, huawei_subdomain: str = "region01eu5",
+        session: requests.Session = None, verify_code: str = None, weights_path: str = None
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -81,9 +81,12 @@ class FusionSolarClient:
         :type session: requests.Session
         :param verify_code: The captcha verify code for the login. Only required if captcha shows up.
         :type verify_code: str
+        :param weights_path: Path to the weights file for the captcha solver. Only required if captcha shows up.
+        :type weights_path: str
         """
         self._user = username
         self._password = password
+        self._weights_path = weights_path
         if session is None:
             session = requests.Session()
         self._session = session
@@ -97,7 +100,9 @@ class FusionSolarClient:
             self._login_subdomain = self._huawei_subdomain
 
         # check if captcha is required
-        self._check_captcha()
+        if weights_path:
+            self._solver = Solver(weights_path)
+            self._check_captcha()
         # login immediately to ensure that the credentials are correct
         self._login()
 
@@ -126,14 +131,14 @@ class FusionSolarClient:
         captcha = soup.find(id="verificationCodeInput")
         if captcha:
             captcha = self._get_captcha()
-            self._verify_code = solve_captcha(captcha)
+            self._verify_code = self._solver.solve_captcha(captcha, self._weights_path)
             # Check if verify code is correct. Not sure if this is needed, but it's done on the website.
-            r = self._session.post(url=f"{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode", 
+            r = self._session.post(url=f"{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
                                    json={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
                 raise AuthenticationException("preValidVerifycode: Login failed: Incorrect verification code.")
-            
+
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
         params = { "timestamp": round(time.time() * 1000)}
@@ -299,7 +304,7 @@ class FusionSolarClient:
 
     @logged_in
     def active_power_control(self, power_setting) -> None:
-        """apply active power control. 
+        """apply active power control.
         This can be usefull when electrity prices are
         negative (sunny summer holiday) and you want
         to limit the power that is exported into the grid"""
@@ -353,7 +358,7 @@ class FusionSolarClient:
         :param plant_id: The plant's id
         :type plant_id: str
         :param query_time: If set, must be set to 00:00:00 of the day the data should
-                           be fetched for. If not set, retrieves the data for the 
+                           be fetched for. If not set, retrieves the data for the
                            current day.
         :type query_time: int
         :return: _description_
