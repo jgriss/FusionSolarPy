@@ -1,13 +1,16 @@
 """Client library to the fusion solar API"""
 
+import json
 import logging
-import requests
 import time
 from datetime import datetime
 from functools import wraps
-import json
 
-from .exceptions import *
+import bs4
+import requests
+
+from .captcha_solver import solve_captcha
+from .exceptions import AuthenticationException, FusionSolarException
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +37,9 @@ class PowerStatus:
         self.total_power_today_kwh = total_power_today_kwh
         self.total_power_kwh = total_power_kwh
 
+    def __repr__(self):
+        return f"PowerStatus(current_power_kw={self.current_power_kw}, total_power_today_kwh={self.total_power_today_kwh}, total_power_kwh={self.total_power_kwh})"
+
 
 def logged_in(func):
     """
@@ -58,7 +64,8 @@ class FusionSolarClient:
     """
 
     def __init__(
-        self, username: str, password: str, huawei_subdomain: str = "region01eu5"
+        self, username: str, password: str, huawei_subdomain: str = "region01eu5", 
+        session: requests.Session = None, verify_code: str = None
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -69,15 +76,28 @@ class FusionSolarClient:
         :type password: str
         :param huawei_subdomain: The FusionSolar API uses different subdomains for different regions.
                                  Adapt this based on the first part of the URL when you access your system.
-        :
+        :type huawei_subdomain: str
+        :param session: An optional requests session object. If not set, a new session will be created.
+        :type session: requests.Session
+        :param verify_code: The captcha verify code for the login. Only required if captcha shows up.
+        :type verify_code: str
         """
         self._user = username
         self._password = password
-        self._session = requests.session()
+        if session is None:
+            session = requests.Session()
+        self._session = session
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
+        self._verify_code = verify_code
+        if self._huawei_subdomain.startswith("region"):
+            self._login_subdomain = self._huawei_subdomain[8:]
+        else:
+            self._login_subdomain = self._huawei_subdomain
 
+        # check if captcha is required
+        self._check_captcha()
         # login immediately to ensure that the credentials are correct
         self._login()
 
@@ -91,19 +111,45 @@ class FusionSolarClient:
             },
         )
 
+    def _check_captcha(self):
+        """Checks if the captcha is required for the login.
+        """
+        _LOGGER.debug("Checking if captcha is required")
+
+        url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/"
+        params = {
+            "service": "%2Funisess%2Fv1%2Fauth%3Fservice%3D%252Fnetecowebext%252Fhome%252Findex.html",
+        }
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+        soup = bs4.BeautifulSoup(r.text, 'html.parser')
+        captcha = soup.find(id="verificationCodeInput")
+        if captcha:
+            captcha = self._get_captcha()
+            self._verify_code = solve_captcha(captcha)
+            # Check if verify code is correct. Not sure if this is needed, but it's done on the website.
+            r = self._session.post(url=f"{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode", 
+                                   json={"verifycode": self._verify_code, "index": 0})
+            r.raise_for_status()
+            if r.text != "success":
+                raise AuthenticationException("Login failed: Incorrect verification code.")
+            
+    def _get_captcha(self):
+        url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
+        params = { "timestamp": round(time.time() * 1000)}
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+        image_buffer = r.content
+        return image_buffer
+
     def _login(self):
         """Logs into the Fusion Solar API. Raises an exception if the login fails.
         """
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
 
-        # adapt the login subdomain - needs separate handling for "intl"
-        if self._huawei_subdomain.startswith("region"):
-            login_subdomain = self._huawei_subdomain[8:]
-        else:
-            login_subdomain = self._huawei_subdomain
 
-        url = f"https://{login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
+        url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
         params = {
             "decision": 1,
             "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
@@ -113,6 +159,8 @@ class FusionSolarClient:
             "username": self._user,
             "password": self._password,
         }
+        if self._verify_code:
+            json_data["verifycode"] = self._verify_code
 
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)
@@ -143,7 +191,7 @@ class FusionSolarClient:
         if "data" not in response_data:
             _LOGGER.error(f"Failed to retrieve data object. {json.dumps(response_data)}")
             raise AuthenticationException(
-                f"Failed to login into FusionSolarAPI."
+                "Failed to login into FusionSolarAPI."
             )
 
         self._company_id = r.json()["data"]["moDn"]
@@ -292,7 +340,7 @@ class FusionSolarClient:
         r.raise_for_status()
         flow_data = r.json()
 
-        if not flow_data["success"] or not "data" in flow_data:
+        if not flow_data["success"] or "data" not in flow_data:
             raise FusionSolarException(f"Failed to retrieve plant flow for {plant_id}")
 
         return flow_data
@@ -328,7 +376,7 @@ class FusionSolarClient:
         r.raise_for_status()
         plant_data = r.json()
 
-        if not plant_data["success"] or not "data" in plant_data:
+        if not plant_data["success"] or "data" not in plant_data:
             raise FusionSolarException(
                 f"Failed to retrieve plant status for {plant_id}"
             )
@@ -437,7 +485,7 @@ class FusionSolarClient:
         r.raise_for_status()
         optimizer_data = r.json()
 
-        if not optimizer_data["success"] or not "data" in optimizer_data:
+        if not optimizer_data["success"] or "data" not in optimizer_data:
             raise FusionSolarException(
                 f"Failed to retrieve plant status for {inverter_id}"
             )
