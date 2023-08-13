@@ -73,8 +73,11 @@ def with_solver(func):
             # don't allow another captcha exception to be caught by this wrapper
             kwargs["allow_captcha_exception"] = False
             # check if captcha is required and populate self._verify_code
+            # clear previous verify code if there was one for the check later
+            self._verify_code = None
             self._check_captcha()
-            result = func(self, *args, **kwargs)
+            if self._verify_code is not None:
+                result = func(self, *args, **kwargs)
         return result
 
     return wrapper
@@ -141,6 +144,10 @@ class FusionSolarClient:
 
     def _check_captcha(self):
         """Checks if the captcha is required for the login.
+
+        Also solves the captcha and places the answer into self._verify_code
+
+        :returns True if captcha is required, False otherwise
         """
         _LOGGER.debug("Checking if captcha is required")
 
@@ -154,12 +161,16 @@ class FusionSolarClient:
         captcha_exists = soup.find(id="verificationCodeInput")
         if captcha_exists:
             captcha = self._get_captcha()
+            self._init_solver()
             self._verify_code = self._solver.solve_captcha(captcha)
             r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
                                    data={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
                 raise AuthenticationException("Login failed: captcha prevalidverify fail.")
+            return True
+        else:
+            return False
 
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
@@ -204,9 +215,13 @@ class FusionSolarClient:
         r.raise_for_status()
 
         # make sure that the login worked
-        if error := r.json()["errorCode"]:
+        error = None
+        if r.json()["errorMsg"]:
+            error = r.json()["errorMsg"]
+
+        if error:
             _LOGGER.error(f"Login failed: {r.json()['errorMsg']}")
-            if error.lower().contains("incorrect verification code") and allow_captcha_exception:
+            if "incorrect verification code" in error.lower() and allow_captcha_exception:
                 raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
                 f"Failed to login into FusionSolarAPI: { r.json()['errorMsg'] }"
