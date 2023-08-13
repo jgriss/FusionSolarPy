@@ -133,7 +133,7 @@ class FusionSolarClient:
             self._verify_code = self._solver.solve_captcha(captcha)
             # Check if verify code is correct. Not sure if this is needed, but it's done on the website.
             r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
-                                   json={"verifycode": self._verify_code, "index": 0})
+                                   data={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
                 raise AuthenticationException("preValidVerifycode: Login failed: Incorrect verification code.")
