@@ -59,7 +59,15 @@ account.
 from fusion_solar_py.client import FusionSolarClient
 
 # log into the API - with proper credentials...
-client = FusionSolarClient("my_user", "my_password")
+client = client = FusionSolarClient(
+  "my_user",
+  "my_password",
+  huawei_subdomain="subdomain",
+  model_path="path_to_model",
+  runtime="onnx",
+  device=['CPUExecutionProvider']
+)
+
 
 # get the plant ids
 plant_ids = client.get_plant_ids()
