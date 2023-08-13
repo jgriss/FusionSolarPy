@@ -82,7 +82,7 @@ def with_solver(func):
             if self._verify_code is not None:
                 result = func(self, *args, **kwargs)
             else:
-                raise AuthenticationException("Login failed: captcha solver failed.")
+                raise AuthenticationException("Login failed: no verify code found.")
         return result
 
     return wrapper
