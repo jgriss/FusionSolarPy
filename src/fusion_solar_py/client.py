@@ -10,7 +10,7 @@ from typing import Any, Optional
 import bs4
 import requests
 
-from .exceptions import AuthenticationException, FusionSolarException
+from .exceptions import AuthenticationException, CaptchaRequiredException, FusionSolarException
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -52,12 +52,32 @@ def logged_in(func):
             result = func(self, *args, **kwargs)
         except (json.JSONDecodeError, requests.exceptions.HTTPError):
             _LOGGER.info("Logging in")
-            self._login()
+            self._configure_session()
             result = func(self, *args, **kwargs)
         return result
 
     return wrapper
 
+
+def with_solver(func):
+    """
+    Decorator to solve captchas when required
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            result = func(self, *args, **kwargs)
+        except (CaptchaRequiredException):
+            _LOGGER.info("solving captcha and retrying login")
+            # don't allow another captcha exception to be caught by this wrapper
+            kwargs["allow_captcha_exception"] = False
+            # check if captcha is required and populate self._verify_code
+            self._check_captcha()
+            result = func(self, *args, **kwargs)
+        return result
+
+    return wrapper
 
 class FusionSolarClient:
     """The main client to interact with the Fusion Solar API
@@ -65,7 +85,7 @@ class FusionSolarClient:
 
     def __init__(
         self, username: str, password: str, huawei_subdomain: str = "region01eu5",
-        session: Optional[requests.Session] = None, model_path: Optional[str] = None, runtime: Optional[str] ="onnx", device: Optional[Any] = ['CPUExecutionProvider']
+        session: Optional[requests.Session] = None, model_path: Optional[str] = None, runtime: Optional[str] = "onnx", device: Optional[Any] = ['CPUExecutionProvider']
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -100,18 +120,14 @@ class FusionSolarClient:
         else:
             self._login_subdomain = self._huawei_subdomain
 
-        # check if captcha is required
-        if model_path:
-            if runtime == "onnx":
-                from .captcha_solver_onnx import Solver
-                self._solver = Solver(model_path, device)
-            elif runtime == "keras":
-                from .captcha_solver_tf import Solver
-                self._solver = Solver(model_path, device)
-            self._check_captcha()
+        self._model_path = model_path
+        self._runtime = runtime
+        self._device = device
+        self._solver = None
+
         # Only login if no session has been provided. The session should hold the cookies for a logged in state
         if session is None:
-            self._login()
+            self._configure_session()
 
     def log_out(self):
         """Log out from the FusionSolarAPI
@@ -143,22 +159,31 @@ class FusionSolarClient:
                                    data={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
-                raise AuthenticationException("Login failed: Incorrect verification code.")
+                raise AuthenticationException("Login failed: captcha prevalidverify fail.")
 
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
-        params = { "timestamp": round(time.time() * 1000)}
+        params = {"timestamp": round(time.time() * 1000)}
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
         image_buffer = r.content
         return image_buffer
 
-    def _login(self):
-        """Logs into the Fusion Solar API. Raises an exception if the login fails.
-        """
-        # check the login credentials right away
-        _LOGGER.debug("Logging into Huawei Fusion Solar API")
+    def _init_solver(self):
+        if self._model_path is None:
+            return
+        if self._solver is not None:
+            return
 
+        if self._runtime == "onnx":
+            from .captcha_solver_onnx import Solver
+            self._solver = Solver(self._model_path, self._device)
+        elif self._runtime == "keras":
+            from .captcha_solver_tf import Solver
+            self._solver = Solver(self._model_path, self._device)
+
+    @with_solver
+    def _login(self, allow_captcha_exception=True):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
         params = {
             "decision": 1,
@@ -171,17 +196,29 @@ class FusionSolarClient:
         }
         if self._verify_code:
             json_data["verifycode"] = self._verify_code
+            # invalidate verify code after use
+            self._verify_code = None
 
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)
         r.raise_for_status()
 
         # make sure that the login worked
-        if r.json()["errorCode"]:
+        if error := r.json()["errorCode"]:
             _LOGGER.error(f"Login failed: {r.json()['errorMsg']}")
+            if error.lower().contains("incorrect verification code") and allow_captcha_exception:
+                raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
                 f"Failed to login into FusionSolarAPI: { r.json()['errorMsg'] }"
             )
+
+    def _configure_session(self):
+        """Logs into the Fusion Solar API. Raises an exception if the login fails.
+        """
+        # check the login credentials right away
+        _LOGGER.debug("Logging into Huawei Fusion Solar API")
+
+        self._login()
 
         # get the main id
         r = self._session.get(
@@ -267,14 +304,14 @@ class FusionSolarClient:
         r = self._session.post(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/station/station-list",
             json={
-                "curPage":1,
-                "pageSize":10,
-                "gridConnectedTime":"",
+                "curPage": 1,
+                "pageSize": 10,
+                "gridConnectedTime": "",
                 "queryTime": self._get_day_start_sec(),
-                "timeZone":2,
-                "sortId":"createTime",
-                "sortDir":"DESC",
-                "locale":"en_US"
+                "timeZone": 2,
+                "sortId": "createTime",
+                "sortDir": "DESC",
+                "locale": "en_US"
             }
         )
         r.raise_for_status()
@@ -286,7 +323,6 @@ class FusionSolarClient:
 
         # simply return the original object list
         return obj_tree["data"]["list"]
-
 
     @logged_in
     def get_device_ids(self) -> dict:
@@ -327,7 +363,8 @@ class FusionSolarClient:
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/deviceExt/set-config-signals"
         data = {
             "dn": device_key["Dongle"],  # power control needs to be done in the dongle
-            "changeValues": f'[{{"id":"230190032","value":"{power_setting_options[power_setting]}"}}]',  # 230190032 stands for "Active Power Control"
+            # 230190032 stands for "Active Power Control"
+            "changeValues": f'[{{"id":"230190032","value":"{power_setting_options[power_setting]}"}}]',
         }
 
         r = self._session.post(url, data=data)
@@ -357,7 +394,7 @@ class FusionSolarClient:
 
     @logged_in
     def get_plant_stats(
-        self, plant_id: str, query_time: int=None
+        self, plant_id: str, query_time: int = None
     ) -> dict:
         """Retrieves the complete plant usage statistics for the current day.
         :param plant_id: The plant's id
