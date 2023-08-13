@@ -65,7 +65,7 @@ class FusionSolarClient:
 
     def __init__(
         self, username: str, password: str, huawei_subdomain: str = "region01eu5",
-        session: Optional[requests.Session] = None, verify_code: Optional[str] = None, model_path: Optional[str] = None, runtime: Optional[str] ="onnx", device: Optional[Any] = ['CPUExecutionProvider']
+        session: Optional[requests.Session] = None, model_path: Optional[str] = None, runtime: Optional[str] ="onnx", device: Optional[Any] = ['CPUExecutionProvider']
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -79,8 +79,6 @@ class FusionSolarClient:
         :type huawei_subdomain: str
         :param session: An optional requests session object. If not set, a new session will be created.
         :type session: requests.Session
-        :param verify_code: The captcha verify code for the login. Only required if captcha shows up.
-        :type verify_code: str
         :param model_path: Path to the weights file for the captcha solver. Only required if you want to use the auto captcha solver
         :type model_path: str
         :param runtime: The runtime for the captcha solver. Only required if you want to use the auto captcha solver. Supported runtimes: onnx, keras
@@ -89,13 +87,14 @@ class FusionSolarClient:
         """
         self._user = username
         self._password = password
+        self._verify_code = None
         if session is None:
-            session = requests.Session()
-        self._session = session
+            self._session = requests.Session()
+        else:
+            self._session = session
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
-        self._verify_code = verify_code
         if self._huawei_subdomain.startswith("region"):
             self._login_subdomain = self._huawei_subdomain[8:]
         else:
@@ -110,8 +109,9 @@ class FusionSolarClient:
                 from .captcha_solver_tf import Solver
                 self._solver = Solver(model_path, device)
             self._check_captcha()
-        # login immediately to ensure that the credentials are correct
-        self._login()
+        # Only login if no session has been provided. The session should hold the cookies for a logged in state
+        if session is None:
+            self._login()
 
     def log_out(self):
         """Log out from the FusionSolarAPI
@@ -135,16 +135,15 @@ class FusionSolarClient:
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
         soup = bs4.BeautifulSoup(r.text, 'html.parser')
-        captcha = soup.find(id="verificationCodeInput")
-        if captcha:
+        captcha_exists = soup.find(id="verificationCodeInput")
+        if captcha_exists:
             captcha = self._get_captcha()
             self._verify_code = self._solver.solve_captcha(captcha)
-            # Check if verify code is correct. Not sure if this is needed, but it's done on the website.
             r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
                                    data={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
-                raise AuthenticationException("preValidVerifycode: Login failed: Incorrect verification code.")
+                raise AuthenticationException("Login failed: Incorrect verification code.")
 
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
@@ -159,7 +158,6 @@ class FusionSolarClient:
         """
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
-
 
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
         params = {
