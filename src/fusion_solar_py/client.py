@@ -132,7 +132,7 @@ class FusionSolarClient:
                                    json={"verifycode": self._verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
-                raise AuthenticationException("Login failed: Incorrect verification code.")
+                raise AuthenticationException("preValidVerifycode: Login failed: Incorrect verification code.")
             
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
