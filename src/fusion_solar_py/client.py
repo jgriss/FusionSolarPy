@@ -228,7 +228,7 @@ class FusionSolarClient:
             if "incorrect verification code" in error.lower() and allow_captcha_exception:
                 raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
-                f"Failed to login into FusionSolarAPI: { r.json()['errorMsg'] }"
+                f"Failed to login into FusionSolarAPI: { error }"
             )
 
     def _configure_session(self):
