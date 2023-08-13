@@ -9,7 +9,6 @@ from functools import wraps
 import bs4
 import requests
 
-from .captcha_solver import Solver
 from .exceptions import AuthenticationException, FusionSolarException
 
 # global logger object
@@ -65,7 +64,7 @@ class FusionSolarClient:
 
     def __init__(
         self, username: str, password: str, huawei_subdomain: str = "region01eu5",
-        session: requests.Session = None, verify_code: str = None, weights_path: str = None
+        session: requests.Session = None, verify_code: str = None, model_path: str = None, runtime="onnx"
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -81,8 +80,10 @@ class FusionSolarClient:
         :type session: requests.Session
         :param verify_code: The captcha verify code for the login. Only required if captcha shows up.
         :type verify_code: str
-        :param weights_path: Path to the weights file for the captcha solver. Only required if captcha shows up.
-        :type weights_path: str
+        :param model_path: Path to the weights file for the captcha solver. Only required if you need to solve captchas
+        :type model_path: str
+        :param runtime: The runtime for the captcha solver. Only required if captcha shows up. Supported runtimes: onnx, keras
+        :type runtime: str
         """
         self._user = username
         self._password = password
@@ -99,8 +100,13 @@ class FusionSolarClient:
             self._login_subdomain = self._huawei_subdomain
 
         # check if captcha is required
-        if weights_path:
-            self._solver = Solver(weights_path)
+        if model_path:
+            if runtime == "onnx":
+                from .captcha_solver_onnx import Solver
+                self._solver = Solver(model_path)
+            elif runtime == "keras":
+                from .captcha_solver_tf import Solver
+                self._solver = Solver(model_path)
             self._check_captcha()
         # login immediately to ensure that the credentials are correct
         self._login()

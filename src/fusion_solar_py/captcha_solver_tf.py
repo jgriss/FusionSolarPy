@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from fusion_solar_py.interfaces import GenericSolver
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -42,9 +43,9 @@ class CTCLayer(layers.Layer):
         return y_pred
 
 
-class Solver():
-    def __init__(self, weights_path):
-        self.model = keras.models.load_model(weights_path, custom_objects={"CTCLayer": CTCLayer})
+class Solver(GenericSolver):
+    def _init_model(self):
+        self.model = keras.models.load_model(self.model_path, custom_objects={"CTCLayer": CTCLayer})
         self.prediction_model = keras.models.Model(
             self.model.get_layer(name="image").input, self.model.get_layer(name="dense2").output
         )
