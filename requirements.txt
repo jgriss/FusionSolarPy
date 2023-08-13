@@ -2,5 +2,6 @@ beautifulsoup4==4.12.2
 numpy==1.24.3
 opencv_python==4.8.0.76
 requests==2.31.0
-tensorflow==2.13.0
-tensorflow_intel==2.13.0
+onnxruntime-gpu==1.14
+#tensorflow==2.13.0
+#tensorflow_intel==2.13.0
