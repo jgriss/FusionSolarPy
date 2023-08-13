@@ -225,7 +225,6 @@ class FusionSolarClient:
             error = r.json()["errorMsg"]
 
         if error:
-            _LOGGER.error(f"Login failed: {r.json()['errorMsg']}")
             if "incorrect verification code" in error.lower() and allow_captcha_exception:
                 raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
