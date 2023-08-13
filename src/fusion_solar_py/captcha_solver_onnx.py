@@ -12,7 +12,7 @@ blank_idx = 20
 class Solver(GenericSolver):
 
     def _init_model(self):
-        self.session = rt.InferenceSession("D:\\Code\\Repos\\walzen-group\\FusionSolarPy\\src\\fusion_solar_py\\captcha_huawei.onnx", providers=self.device)
+        self.session = rt.InferenceSession(self.model_path, providers=self.device)
 
 
     def solve_captcha(self, img):
