@@ -5,6 +5,7 @@ import logging
 import time
 from datetime import datetime
 from functools import wraps
+from typing import Any, Optional
 
 import bs4
 import requests
@@ -64,7 +65,7 @@ class FusionSolarClient:
 
     def __init__(
         self, username: str, password: str, huawei_subdomain: str = "region01eu5",
-        session: requests.Session = None, verify_code: str = None, model_path: str = None, runtime="onnx"
+        session: Optional[requests.Session] = None, verify_code: Optional[str] = None, model_path: Optional[str] = None, runtime: Optional[str] ="onnx", device: Optional[Any] = ['CPUExecutionProvider']
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -80,10 +81,11 @@ class FusionSolarClient:
         :type session: requests.Session
         :param verify_code: The captcha verify code for the login. Only required if captcha shows up.
         :type verify_code: str
-        :param model_path: Path to the weights file for the captcha solver. Only required if you need to solve captchas
+        :param model_path: Path to the weights file for the captcha solver. Only required if you want to use the auto captcha solver
         :type model_path: str
-        :param runtime: The runtime for the captcha solver. Only required if captcha shows up. Supported runtimes: onnx, keras
+        :param runtime: The runtime for the captcha solver. Only required if you want to use the auto captcha solver. Supported runtimes: onnx, keras
         :type runtime: str
+        :param device : The device to run the captcha solver on. Only required if you want to use the auto captcha solver
         """
         self._user = username
         self._password = password
@@ -103,10 +105,10 @@ class FusionSolarClient:
         if model_path:
             if runtime == "onnx":
                 from .captcha_solver_onnx import Solver
-                self._solver = Solver(model_path)
+                self._solver = Solver(model_path, device)
             elif runtime == "keras":
                 from .captcha_solver_tf import Solver
-                self._solver = Solver(model_path)
+                self._solver = Solver(model_path, device)
             self._check_captcha()
         # login immediately to ensure that the credentials are correct
         self._login()
