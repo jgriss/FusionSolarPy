@@ -30,7 +30,7 @@ class Solver(GenericSolver):
         # If this causese, probelms, increas the beam size
         # default val is 100
         # I have tested it with 10 and it seemed to work well
-        results = decode(pred[0], beam_size=1, blank=blank_idx)
+        results = decode(pred[0], beam_size=10, blank=blank_idx)
         # Iterate over the results and get back the text
         output_text = list(map(lambda n: alphabet[n-1], results[0]))
         return ''.join(output_text)
