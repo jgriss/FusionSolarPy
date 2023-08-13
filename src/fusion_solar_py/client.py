@@ -75,9 +75,14 @@ def with_solver(func):
             # check if captcha is required and populate self._verify_code
             # clear previous verify code if there was one for the check later
             self._verify_code = None
-            self._check_captcha()
+            captcha_present = self._check_captcha()
+            if not captcha_present:
+                raise AuthenticationException("Login failed: captcha required but not present.")
+
             if self._verify_code is not None:
                 result = func(self, *args, **kwargs)
+            else:
+                raise AuthenticationException("Login failed: captcha solver failed.")
         return result
 
     return wrapper
