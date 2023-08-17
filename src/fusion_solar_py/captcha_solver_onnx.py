@@ -25,7 +25,7 @@ class Solver(GenericSolver):
         return self.decode_batch_predictions(out[0])
 
     def decode_batch_predictions(self, pred):
-        # Using a beam size of 1 here as the output is quite small as
+        # Using a beam size of 10 here as the output is quite small as
         # we only have 19 characters and a string length of 4
         # If this causese, probelms, increas the beam size
         # default val is 100
