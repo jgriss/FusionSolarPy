@@ -11,6 +11,7 @@ import bs4
 import requests
 
 from .exceptions import AuthenticationException, CaptchaRequiredException, FusionSolarException
+from .constants import MODULE_SIGNALS
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -361,6 +362,80 @@ class FusionSolarClient:
         for device in device_data["data"]:
             device_key[device["mocTypeName"]] = device["dn"]
         return device_key
+    
+    @logged_in
+    def get_battery_day_stats(self, battery_id: str) -> dict:
+        """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of 
+        the battery for the current day.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :return: The complete data structure as a dict
+        """
+        current_time = round(time.time() * 1000)
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
+            params={
+                "signalIds": ["30005", "30007"], # 30005 is Charge/Discharge power, 30007 is SOC, state of charge in %
+                "deviceDn": battery_id,
+                "date": current_time,
+                "_": current_time,
+            },
+        )
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery day stats for {battery_id}"
+            )
+
+        battery_data["data"]["30005"]["name"] = "Charge/Discharge power"
+        battery_data["data"]["30007"]["name"] = "SOC"
+
+        return battery_data["data"]
+    
+
+    @logged_in
+    def get_battery_module_stats(
+        self, battery_id: str, module_id: str="1", signal_ids: list=None
+        ) -> dict:
+        """Retrieves the complete stats for the given battery module
+        of the latest recorded time.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :param module_id: The module's id
+        :type module_id: str
+        :param signal_ids: The signal ids to retrieve. If not set, all signals will be retrieved
+        :type signal_ids: list
+        :return: The complete data structure as a dict
+        """
+        if signal_ids is None:
+            signal_ids = MODULE_SIGNALS[module_id]
+        else:
+            if not all(signal_id in MODULE_SIGNALS[module_id] for signal_id in signal_ids):
+                raise ValueError(f"One or more unknown signal ids for module {module_id}")
+
+        signal_ids = ",".join(signal_ids)
+
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/query-battery-dc",
+            params={
+                "sigids": signal_ids,
+                "dn": battery_id,
+                "moduleId": module_id,
+                "_": round(time.time() * 1000),
+            },
+        )
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery status for {battery_id}"
+            )
+
+        return battery_data["data"]
+    
 
     @logged_in
     def active_power_control(self, power_setting) -> None:
