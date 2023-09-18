@@ -438,6 +438,34 @@ class FusionSolarClient:
     
 
     @logged_in
+    def get_battery_status(self, battery_id: str) -> dict:
+        """Retrieve the current battery status. This is the complete
+           summary accross all battery modules.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :return: The current status as a dict
+        """
+
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data", 
+            params={
+                "deviceDn": battery_id,
+                "_": round(time.time() * 1000),
+            }
+        )
+        
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery status for {battery_id}"
+            )
+
+        return battery_data["data"][1]["signals"]
+    
+
+    @logged_in
     def active_power_control(self, power_setting) -> None:
         """apply active power control.
         This can be usefull when electrity prices are
