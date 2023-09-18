@@ -149,3 +149,168 @@ These are returned as lists of values. The matching timepoints are found in the
   * **disGridPower**: (Probably) The amount of power taken from the grid.
   * **productPower**: Amounf of power produced by the PV.
   * **usePower**: Amount of power used.
+
+## Available battery stats
+
+### [get_battery_ids()](src/fusion_solar_py/client.py#L422)
+
+This function returns a list of battery IDs from the given plant. The returned battery ID is used for the other battery functions.
+
+### [get_battery_basic_stats()](src/fusion_solar_py/client.py#L438)
+
+This function returns a `BatteryStatus` object. It takes the information from [get_battery_status()](#get_battery_status) and just provides an easy wrapper, similar to [get_power_status()](src/fusion_solar_py/client.py#L330). It contains the following information:
+
+* **`state_of_charge`**: The current state of charge in %
+* **`rated_capacity`**: The total capacity of the battery in kWh
+* **`operating_status`**: The current operating status of the battery
+* **`backup_time`**: The time the battery can run on its own (we think - our battery doesn't have this value)
+* **`bus_voltage`**: The current bus voltage in V
+* **`total_charged_today_kwh`**: The total amount of energy charged today in kWh
+* **`total_discharged_today_kwh`**: The total amount of energy discharged today in kWh
+* **`current_charge_discharge_kw`**: The current charge/discharge power in kW
+
+
+### [get_battery_day_stats()](src/fusion_solar_py/client.py#L459)
+
+This function returns a list of dicts, where each dict is a timestamp. Each dict is 5 minutes apart. It contains **charge/discharge power** and **state of charge (SOC)**
+<details>
+<summary>Example output</summary>
+
+```python
+{
+    '30005': {
+        'pmDataList': [
+            {
+                'counterId': 30005,
+                'counterValue': -0.262,  # Negative means discharge, positive means charge
+                'dnId': 123456,  # Battery ID
+                'dstOffset': 60,
+                'period': 300,
+                'startTime': 1694988000,  # UNIX timestamp
+                'timeZoneOffset': 60
+            },
+            ...
+        ],
+        'total': int,
+        'name': 'Charge/Discharge power'
+    },
+    '30007': {
+        'pmDataList': [
+            {
+                'counterId': 30007,
+                'counterValue': 56.0,  # SOC in %
+                'dnId': 123456,  # Battery ID
+                'dstOffset': 60,
+                'period': 300,
+                'startTime': 1694988000,  # UNIX timestamp
+                'timeZoneOffset': 60
+            },
+            ...
+        ],
+        'total': int,
+        'name': 'SOC'
+    }
+}
+```
+</details>
+
+### [get_battery_module_stats()](src/fusion_solar_py/client.py#L491)
+
+This function retrieves the complete stats for the given battery module of the latest recorded time. It returns a list of dicts. For the details of the dicts, please see [signals.md](signals.md)
+
+
+### [get_battery_status()](src/fusion_solar_py/client.py#L533)
+
+This function retrieves the current status of the battery. It returns a list of dicts. We haven't figured out the meaning of all the modes yet.
+
+* **Battery operating status**
+* **Charge/Discharge mode**
+* **Rated capacity**: Probably the total capacity of the battery in kWh
+* **Backup time**: Probably the time the battery can run on its own
+* **Energy charged today**: The total amount of energy charged today in kWh
+* **Energy discharged today**: The total amount of energy discharged today in kWh
+* **Charge/Discharge power**: The current charge/discharge power in kW
+* **Bus voltage**: The current bus voltage in V
+* **SOC**: The current state of charge in %
+
+<details>
+  <summary>Example output</summary>
+  
+```python
+[
+    {
+        'id': 10003,
+        'latestTime': 1695047841,
+        'name': 'Battery operating status',
+        'realValue': '2',
+        'unit': '',
+        'value': 'Operating'
+    },
+    {
+        'id': 10008,
+        'latestTime': 1695047841,
+        'name': 'Charge/Discharge mode',
+        'realValue': '4',
+        'unit': '',
+        'value': 'Maximum self-consumption'
+    },
+    {
+        'id': 10013,
+        'latestTime': 1695062404,
+        'name': 'Rated capacity',
+        'realValue': '5.000',
+        'unit': 'kWh',
+        'value': '5.000'
+    },
+    {
+        'id': 10015,
+        'latestTime': 1695062404,
+        'name': 'Backup time',
+        'realValue': 'N/A',
+        'unit': 'min',
+        'value': '-'
+    },
+    {
+        'id': 10001,
+        'latestTime': 1695062404,
+        'name': 'Energy charged today',
+        'realValue': '3.72',
+        'unit': 'kWh',
+        'value': '3.72'
+    },
+    {
+        'id': 10002,
+        'latestTime': 1695062404,
+        'name': 'Energy discharged today',
+        'realValue': '4.83',
+        'unit': 'kWh',
+        'value': '4.83'
+    },
+    {
+        'id': 10004,
+        'latestTime': 1695062404,
+        'name': 'Charge/Discharge power',
+        'realValue': '-0.485',
+        'unit': 'kW',
+        'value': '-0.485'
+    },
+    {
+        'id': 10005,
+        'latestTime': 1695062404,
+        'name': 'Bus voltage',
+        'realValue': '766.7',
+        'unit': 'V',
+        'value': '766.7'
+    },
+    {
+        'id': 10006,
+        'latestTime': 1695062404,
+        'name': 'SOC',
+        'realValue': '31.0',
+        'unit': '%',
+        'value': '31.0'
+    }
+]
+```
+</details>
+

@@ -11,6 +11,7 @@ import bs4
 import requests
 
 from .exceptions import AuthenticationException, CaptchaRequiredException, FusionSolarException
+from .constants import MODULE_SIGNALS
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +41,60 @@ class PowerStatus:
     def __repr__(self):
         return f"PowerStatus(current_power_kw={self.current_power_kw}, total_power_today_kwh={self.total_power_today_kwh}, total_power_kwh={self.total_power_kwh})"
 
+
+class BatteryStatus:
+    """Class representing the basic battery status"""
+
+    def __init__(
+            self,
+            state_of_charge: float,
+            rated_capacity: float,
+            operating_status: str,
+            backup_time: str,
+            bus_voltage: float,
+            total_charged_today_kwh: float,
+            total_discharged_today_kwh: float,
+            current_charge_discharge_kw: float,
+    ):
+        """Create a new BatteryStatus object
+        :param state_of_charge: The current state of charge in %
+        :type state_of_charge: float
+        :param rated_capacity: The rated capacity in kWh
+        :type rated_capacity: float
+        :param operating_status: The operating status
+        :type operating_status: str
+        :param backup_time: The backup time
+        :type backup_time: str
+        :param bus_voltage: The bus voltage in V
+        :type bus_voltage: float
+        :param total_charged_today_kwh: The total energy charged today in kWh
+        :type total_charged_today_kwh: float
+        :param total_discharged_today_kwh: The total energy discharged today in kWh
+        :type total_discharged_today_kwh: float
+        :param current_charge_discharge_kw: The current charge/discharge power in kW
+        :type current_charge_discharge_kw: float
+        """
+        self.state_of_charge = state_of_charge
+        self.rated_capacity = rated_capacity
+        self.operating_status = operating_status
+        self.backup_time = backup_time
+        self.bus_voltage = bus_voltage
+        self.total_charged_today_kwh = total_charged_today_kwh
+        self.total_discharged_today_kwh = total_discharged_today_kwh
+        self.current_charge_discharge_kw = current_charge_discharge_kw
+
+    def __repr__(self):
+        return (
+            f"BatteryStatus("
+            f"state_of_charge={self.state_of_charge}, "
+            f"rated_capacity={self.rated_capacity}, "
+            f"operating_status={self.operating_status}, "
+            f"backup_time={self.backup_time}, "
+            f"bus_voltage={self.bus_voltage}, "
+            f"total_charged_today_kwh={self.total_charged_today_kwh}, "
+            f"total_discharged_today_kwh={self.total_discharged_today_kwh}, "
+            f"current_charge_discharge_kw={self.current_charge_discharge_kw}, "
+        )
 
 def logged_in(func):
     """
@@ -361,6 +416,146 @@ class FusionSolarClient:
         for device in device_data["data"]:
             device_key[device["mocTypeName"]] = device["dn"]
         return device_key
+
+    
+    @logged_in
+    def get_battery_ids(self, plant_id) -> list:
+        """gets the battery ids associated to a given plant id
+        :return: A list of battery ids (strings)
+        :rtype: list
+        """
+        plant_flow = self.get_plant_flow(plant_id)
+        nodes = plant_flow['data']['flow']['nodes']
+        battery_ids = []
+        for node in nodes:
+            if "energy_store" in node["name"]:
+                battery_ids.append(node["devIds"][0])
+
+        return battery_ids
+    
+
+    @logged_in
+    def get_battery_basic_stats(self, battery_id: str) -> BatteryStatus:
+        """Retrieves the basic stats for the given battery.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :return: The basic stats as a BatteryStatus object
+        """
+        battery_stats = self.get_battery_status(battery_id)
+        battery_status = BatteryStatus(
+            state_of_charge=float(battery_stats[8]["realValue"]),
+            rated_capacity=float(battery_stats[2]["realValue"]),
+            operating_status=battery_stats[0]["value"],
+            backup_time=battery_stats[3]["value"],
+            bus_voltage=float(battery_stats[7]["realValue"]),
+            total_charged_today_kwh=float(battery_stats[4]["realValue"]),
+            total_discharged_today_kwh=float(battery_stats[5]["realValue"]),
+            current_charge_discharge_kw=float(battery_stats[6]["realValue"]),
+        )
+
+        return battery_status              
+    
+    @logged_in
+    def get_battery_day_stats(self, battery_id: str) -> dict:
+        """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of 
+        the battery for the current day.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :return: The complete data structure as a dict
+        """
+        current_time = round(time.time() * 1000)
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
+            params={
+                "signalIds": ["30005", "30007"], # 30005 is Charge/Discharge power, 30007 is SOC, state of charge in %
+                "deviceDn": battery_id,
+                "date": current_time,
+                "_": current_time,
+            },
+        )
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery day stats for {battery_id}"
+            )
+
+        battery_data["data"]["30005"]["name"] = "Charge/Discharge power"
+        battery_data["data"]["30007"]["name"] = "SOC"
+
+        return battery_data["data"]
+    
+
+    @logged_in
+    def get_battery_module_stats(
+        self, battery_id: str, module_id: str="1", signal_ids: list=None
+        ) -> dict:
+        """Retrieves the complete stats for the given battery module
+        of the latest recorded time. See signals.md for a list of signals.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :param module_id: The module's id
+        :type module_id: str
+        :param signal_ids: The signal ids to retrieve. If not set, all signals will be retrieved
+        :type signal_ids: list
+        :return: The complete data structure as a dict
+        """
+        if signal_ids is None:
+            signal_ids = MODULE_SIGNALS[module_id]
+        else:
+            if not all(signal_id in MODULE_SIGNALS[module_id] for signal_id in signal_ids):
+                raise ValueError(f"One or more unknown signal ids for module {module_id}")
+
+        signal_ids = ",".join(signal_ids)
+
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/query-battery-dc",
+            params={
+                "sigids": signal_ids,
+                "dn": battery_id,
+                "moduleId": module_id,
+                "_": round(time.time() * 1000),
+            },
+        )
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery status for {battery_id}"
+            )
+
+        return battery_data["data"]
+    
+
+    @logged_in
+    def get_battery_status(self, battery_id: str) -> dict:
+        """Retrieve the current battery status. This is the complete
+           summary accross all battery modules.
+        :param battery_id: The battery's id
+        :type battery_id: str
+        :return: The current status as a dict
+        """
+
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data", 
+            params={
+                "deviceDn": battery_id,
+                "_": round(time.time() * 1000),
+            }
+        )
+        
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery status for {battery_id}"
+            )
+
+        return battery_data["data"][1]["signals"]
+    
 
     @logged_in
     def active_power_control(self, power_setting) -> None:
