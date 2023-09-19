@@ -148,7 +148,7 @@ class FusionSolarClient:
 
     def __init__(
         self, username: str, password: str, huawei_subdomain: str = "region01eu5",
-        session: Optional[requests.Session] = None, model_path: Optional[str] = None, runtime: Optional[str] = "onnx", device: Optional[Any] = ['CPUExecutionProvider']
+        session: Optional[requests.Session] = None, captcha_model_path: Optional[str] = None, captcha_device: Optional[Any] = ['CPUExecutionProvider']
     ) -> None:
         """Initialiazes a new FusionSolarClient instance. This is the main
            class to interact with the FusionSolar API.
@@ -162,15 +162,15 @@ class FusionSolarClient:
         :type huawei_subdomain: str
         :param session: An optional requests session object. If not set, a new session will be created.
         :type session: requests.Session
-        :param model_path: Path to the weights file for the captcha solver. Only required if you want to use the auto captcha solver
-        :type model_path: str
-        :param runtime: The runtime for the captcha solver. Only required if you want to use the auto captcha solver. Supported runtimes: onnx, keras
-        :type runtime: str
-        :param device : The device to run the captcha solver on. Only required if you want to use the auto captcha solver
+        :param captcha_model_path: Path to the weights file for the captcha solver. Only required if you want to use the auto captcha solver
+        :type captcha_model_path: str
+        :param captcha_device : The device to run the captcha solver on, as list of execution providers. Only required if you want to use the auto captcha solver. 
+        Please refer to the onnxruntime documentation for more information. https://onnxruntime.ai/docs/execution-providers/
+        :type captcha_device: list
         """
         self._user = username
         self._password = password
-        self._verify_code = None
+        self._captcha_verify_code = None
         if session is None:
             self._session = requests.Session()
         else:
@@ -183,10 +183,9 @@ class FusionSolarClient:
         else:
             self._login_subdomain = self._huawei_subdomain
 
-        self._model_path = model_path
-        self._runtime = runtime
-        self._device = device
-        self._solver = None
+        self._captcha_model_path = captcha_model_path
+        self.captcha_device = captcha_device
+        self._captcha_solver = None
 
         # Only login if no session has been provided. The session should hold the cookies for a logged in state
         if session is None:
@@ -222,9 +221,9 @@ class FusionSolarClient:
         if captcha_exists:
             captcha = self._get_captcha()
             self._init_solver()
-            self._verify_code = self._solver.solve_captcha(captcha)
+            self._captcha_verify_code = self._captcha_solver.solve_captcha(captcha)
             r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
-                                   data={"verifycode": self._verify_code, "index": 0})
+                                   data={"verifycode": self._captcha_verify_code, "index": 0})
             r.raise_for_status()
             if r.text != "success":
                 raise AuthenticationException("Login failed: captcha prevalidverify fail.")
@@ -241,17 +240,13 @@ class FusionSolarClient:
         return image_buffer
 
     def _init_solver(self):
-        if self._model_path is None:
+        if self._captcha_model_path is None:
             return
-        if self._solver is not None:
+        if self._captcha_solver is not None:
             return
 
-        if self._runtime == "onnx":
-            from .captcha_solver_onnx import Solver
-            self._solver = Solver(self._model_path, self._device)
-        elif self._runtime == "keras":
-            from .captcha_solver_tf import Solver
-            self._solver = Solver(self._model_path, self._device)
+        from .captcha_solver_onnx import Solver
+        self._captcha_solver = Solver(self._captcha_model_path, self.captcha_device)
 
     @with_solver
     def _login(self, allow_captcha_exception=True):
@@ -265,10 +260,10 @@ class FusionSolarClient:
             "username": self._user,
             "password": self._password,
         }
-        if self._verify_code:
-            json_data["verifycode"] = self._verify_code
+        if self._captcha_verify_code:
+            json_data["verifycode"] = self._captcha_verify_code
             # invalidate verify code after use
-            self._verify_code = None
+            self._captcha_verify_code = None
 
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)

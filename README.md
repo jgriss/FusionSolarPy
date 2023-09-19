@@ -104,6 +104,42 @@ for x in client.get_optimizer_stats(client.get_device_ids()['Inverter']):
 client.log_out()
 ```
 
+### Captcha solving
+
+Sometimes, if logging in too often, the API will return a captcha. This is a simple image that needs to be solved at login. This can be done by downloading the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and passing the path to the model to the client in the `captcha_model_path` parameter. 
+
+An additional package is required for this to work: [onnxruntime](https://onnxruntime.ai/). This can be installed with `pip install onnxruntime` or `pip install onnxruntime-gpu` if you have a NVIDIA GPU and want to use CUDA (or other GPU).
+
+
+Optional: It is also possible to specify which device to use (CPU/GPU), which is passed to the `captcha_device` parameter. Per default, CPU is used. The parameter takes a list of strings. Please check the [onnxruntime documentation](https://onnxruntime.ai/docs/execution-providers/) for choosing the execution provider you want to use. For example, if you have a NVIDIA GPU and want to use CUDA, the execution provider to pass is `['CUDAExecutionProvider']`. You can also pass multiple execution providers. `['CUDAExecutionProvider', 'CPUExecutionProvider']` uses `CUDAExecutionProvider` if capable, otherwise `CPUExecutionProvider`.
+
+```python
+from fusion_solar_py.client import FusionSolarClient
+
+client = FusionSolarClient(user, password, captcha_model_path="C:/Users/user/models/captcha_huawei.onnx", captcha_device=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+```
+
+### Session reuse
+
+In case you have to reestablish the connection to the API many times (e.g. for usage with Telegraf), you might want to reuse the session. This can be done by passing the `session` parameter to the client. The session needs to be a `requests.Session` object. If you don't pass a session, a new one will be created.
+
+```python
+import requests
+import pickle
+from fusion_solar_py.client import FusionSolarClient
+
+session = requests.Session()
+client = FusionSolarClient(user, password, session=session)
+
+# To save the session for later use (e.g. if you have to run the script multiple times), you can use pickle and save the session to the disk
+with open('session.pkl', 'wb') as f:
+    pickle.dump(session, f)
+
+# To load the session, you can use pickle again
+with open('session.pkl', 'rb') as f:
+    session = pickle.load(f)
+```
+
 ## Available plant data / stats
 
 This is a list of variables and a (guessed) explanation of what they mean returnd from
