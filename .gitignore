@@ -4,4 +4,3 @@ tests/credentials.json
 dist
 *.egg-info
 __pycache__
-.venv*

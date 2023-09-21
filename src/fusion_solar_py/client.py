@@ -1,10 +1,10 @@
 """Client library to the fusion solar API"""
 
-import json
 import logging
 import time
 from datetime import datetime
 from functools import wraps
+import json
 from typing import Any, Optional
 
 import bs4
