@@ -20,6 +20,15 @@ Simply install from pypi using:
 pip install fusion_solar_py
 ```
 
+If the captcha solver is desired, install with:
+
+```bash
+pip install fusion_solar_py[captcha] # CPU
+# or
+pip install fusion_solar_py[captchaGPU] # GPU
+```
+Please refer to [captcha solving](#captcha-solving) for more information.
+
 ## Usage
 
 The basic usage centers around the `FusionSolarClient` class. It currently
@@ -62,10 +71,7 @@ from fusion_solar_py.client import FusionSolarClient
 client = client = FusionSolarClient(
   "my_user",
   "my_password",
-  huawei_subdomain="subdomain",
-  model_path="path_to_model",
-  runtime="onnx",
-  device=['CPUExecutionProvider']
+  huawei_subdomain="subdomain"
 )
 
 
@@ -106,9 +112,31 @@ client.log_out()
 
 ### Captcha solving
 
-Sometimes, if logging in too often, the API will return a captcha. This is a simple image that needs to be solved at login. This can be done by downloading the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and passing the path to the model to the client in the `captcha_model_path` parameter. 
+Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue. 
 
-An additional package is required for this to work: [onnxruntime](https://onnxruntime.ai/). This can be installed with `pip install onnxruntime` or `pip install onnxruntime-gpu` if you have a NVIDIA GPU and want to use CUDA (or other GPU).
+#### Simple usage
+1. Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again.
+2. Install the required package if you have not installed FusionSolarPy with `pip install fusion_solar_py[captcha]`. If you have, skip this step.
+   ```bash
+    pip install onnxruntime
+    ```
+3. Pass the path to the weights to the client in the `captcha_model_path` parameter.
+
+```python
+from fusion_solar_py.client import FusionSolarClient
+
+client = FusionSolarClient(
+    'my_user', 
+    'my_password', 
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx"
+)
+```
+
+#### Detailed description
+
+Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again. Pass the path to the weights to the client in the `captcha_model_path` parameter. 
+
+An additional package is required for this to work: [onnxruntime](https://onnxruntime.ai/). This can be installed with `pip install onnxruntime` or `pip install onnxruntime-gpu` if you have a GPU and want to use that. If you use GPU, please look at the [documentation](https://onnxruntime.ai/docs/execution-providers/) for the requirements. If you have installed FusionSolarPy with `pip install fusion_solar_py[captcha]` or `pip install fusion_solar_py[captchaGPU]`, onnxruntime is already installed and you can skip this step.
 
 
 Optional: It is also possible to specify which device to use (CPU/GPU), which is passed to the `captcha_device` parameter. Per default, CPU is used. The parameter takes a list of strings. Please check the [onnxruntime documentation](https://onnxruntime.ai/docs/execution-providers/) for choosing the execution provider you want to use. For example, if you have a NVIDIA GPU and want to use CUDA, the execution provider to pass is `['CUDAExecutionProvider']`. You can also pass multiple execution providers. `['CUDAExecutionProvider', 'CPUExecutionProvider']` uses `CUDAExecutionProvider` if capable, otherwise `CPUExecutionProvider`.
@@ -116,7 +144,20 @@ Optional: It is also possible to specify which device to use (CPU/GPU), which is
 ```python
 from fusion_solar_py.client import FusionSolarClient
 
-client = FusionSolarClient(user, password, captcha_model_path="C:/Users/user/models/captcha_huawei.onnx", captcha_device=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+# Using CPU
+client = FusionSolarClient(
+    'my_user', 
+    'my_password', 
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx"
+)
+
+# Using GPU if available, otherwise CPU
+client = FusionSolarClient(
+    'my_user', 
+    'my_password', 
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx", 
+    captcha_device=['CUDAExecutionProvider', 'CPUExecutionProvider']
+)
 ```
 
 ### Session reuse
@@ -129,7 +170,11 @@ import pickle
 from fusion_solar_py.client import FusionSolarClient
 
 session = requests.Session()
-client = FusionSolarClient(user, password, session=session)
+client = FusionSolarClient(
+    'my_user', 
+    'my_password', 
+    session=session
+)
 
 # To save the session for later use (e.g. if you have to run the script multiple times), you can use pickle and save the session to the disk
 with open('session.pkl', 'wb') as f:

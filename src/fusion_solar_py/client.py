@@ -124,6 +124,10 @@ def with_solver(func):
         try:
             result = func(self, *args, **kwargs)
         except (CaptchaRequiredException):
+            if self._captcha_solver is None:
+                raise CaptchaRequiredException(
+                    "Login failed: captcha required but no solver provided. Please"
+                    "refer to the readme for more information on how to use the captcha solver.")
             _LOGGER.info("solving captcha and retrying login")
             # don't allow another captcha exception to be caught by this wrapper
             kwargs["allow_captcha_exception"] = False
