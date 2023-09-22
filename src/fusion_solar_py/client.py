@@ -124,10 +124,6 @@ def with_solver(func):
         try:
             result = func(self, *args, **kwargs)
         except (CaptchaRequiredException):
-            if self._captcha_solver is None:
-                raise CaptchaRequiredException(
-                    "Login failed: captcha required but no solver provided. Please"
-                    "refer to the readme for more information on how to use the captcha solver.")
             _LOGGER.info("solving captcha and retrying login")
             # don't allow another captcha exception to be caught by this wrapper
             kwargs["allow_captcha_exception"] = False
@@ -136,7 +132,7 @@ def with_solver(func):
             self._verify_code = None
             captcha_present = self._check_captcha()
             if not captcha_present:
-                raise AuthenticationException("Login failed: captcha required but not present.")
+                raise AuthenticationException("Login failed: Captcha required but captcha not found.")
 
             if self._verify_code is not None:
                 result = func(self, *args, **kwargs)
@@ -245,7 +241,7 @@ class FusionSolarClient:
 
     def _init_solver(self):
         if self._captcha_model_path is None:
-            return
+            raise ValueError("Captcha required but no captcha solver provided. Please refer to the documentation for more information.")
         if self._captcha_solver is not None:
             return
 

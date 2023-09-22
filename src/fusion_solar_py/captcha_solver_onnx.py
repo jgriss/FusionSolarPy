@@ -1,6 +1,13 @@
 import cv2
 import numpy as np
-import onnxruntime as rt
+try:
+    import onnxruntime as rt
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "onnxruntime is not installed. Please install it using 'pip install onnxruntime' or refer to"
+        " the documentation for more information."
+    )
+
 
 from fusion_solar_py.interfaces import GenericSolver
 
