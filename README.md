@@ -233,15 +233,14 @@ These are returned as lists of values. The matching timepoints are found in the
 
 ## Available battery stats
 
-### [get_battery_ids()](src/fusion_solar_py/client.py#L422)
+### [get_battery_ids(plant_id)](src/fusion_solar_py/client.py#L417)
 
 This function returns a list of battery IDs from the given plant. The returned battery ID is used for the other battery functions.
 
-### [get_battery_basic_stats()](src/fusion_solar_py/client.py#L438)
+### [get_battery_basic_stats(battery_id)](src/fusion_solar_py/client.py#L433)
 
-This function returns a `BatteryStatus` object. It takes the information from [get_battery_status()](#get_battery_status) and just provides an easy wrapper, similar to [get_power_status()](src/fusion_solar_py/client.py#L330). It contains the following information:
+This function returns a `BatteryStatus` object. It takes the information from [get_battery_status(battery_id)](#get_battery_status(battery_id)) and just provides an easy wrapper, similar to [get_power_status()](src/fusion_solar_py/client.py#L325). It contains the following information:
 
-* **`state_of_charge`**: The current state of charge in %
 * **`rated_capacity`**: The total capacity of the battery in kWh
 * **`operating_status`**: The current operating status of the battery
 * **`backup_time`**: The time the battery can run on its own (we think - our battery doesn't have this value)
@@ -251,7 +250,7 @@ This function returns a `BatteryStatus` object. It takes the information from [g
 * **`current_charge_discharge_kw`**: The current charge/discharge power in kW
 
 
-### [get_battery_day_stats()](src/fusion_solar_py/client.py#L459)
+### [get_battery_day_stats(battery_id)](src/fusion_solar_py/client.py#L454)
 
 This function returns a list of dicts, where each dict is a timestamp. Each dict is 5 minutes apart. It contains **charge/discharge power** and **state of charge (SOC)**
 <details>
@@ -295,12 +294,12 @@ This function returns a list of dicts, where each dict is a timestamp. Each dict
 ```
 </details>
 
-### [get_battery_module_stats()](src/fusion_solar_py/client.py#L491)
+### [get_battery_module_stats(battery_id, module_id="1", signal_ids=None)](src/fusion_solar_py/client.py#L486)
 
 This function retrieves the complete stats for the given battery module of the latest recorded time. It returns a list of dicts. For the details of the dicts, please see [signals.md](signals.md)
 
 
-### [get_battery_status()](src/fusion_solar_py/client.py#L533)
+### [get_battery_status(battery_id)](src/fusion_solar_py/client.py#L528)
 
 This function retrieves the current status of the battery. It returns a list of dicts. We haven't figured out the meaning of all the modes yet.
 
