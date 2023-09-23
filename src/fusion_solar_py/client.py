@@ -164,7 +164,7 @@ class FusionSolarClient:
         :type session: requests.Session
         :param captcha_model_path: Path to the weights file for the captcha solver. Only required if you want to use the auto captcha solver
         :type captcha_model_path: str
-        :param captcha_device : The device to run the captcha solver on, as list of execution providers. Only required if you want to use the auto captcha solver. 
+        :param captcha_device : The device to run the captcha solver on, as list of execution providers. Only required if you want to use the auto captcha solver.
         Please refer to the onnxruntime documentation for more information. https://onnxruntime.ai/docs/execution-providers/
         :type captcha_device: list
         """
@@ -241,7 +241,7 @@ class FusionSolarClient:
 
     def _init_solver(self):
         if self._captcha_model_path is None:
-            raise ValueError("Captcha required but no captcha solver provided. Please refer to the documentation for more information.")
+            raise ValueError("Captcha required but no captcha solver model provided. Please refer to the documentation for more information.")
         if self._captcha_solver is not None:
             return
 
@@ -412,7 +412,7 @@ class FusionSolarClient:
             device_key[device["mocTypeName"]] = device["dn"]
         return device_key
 
-    
+
     @logged_in
     def get_battery_ids(self, plant_id) -> list:
         """gets the battery ids associated to a given plant id
@@ -427,7 +427,7 @@ class FusionSolarClient:
                 battery_ids.append(node["devIds"][0])
 
         return battery_ids
-    
+
 
     @logged_in
     def get_battery_basic_stats(self, battery_id: str) -> BatteryStatus:
@@ -448,11 +448,11 @@ class FusionSolarClient:
             current_charge_discharge_kw=float(battery_stats[6]["realValue"]),
         )
 
-        return battery_status              
-    
+        return battery_status
+
     @logged_in
     def get_battery_day_stats(self, battery_id: str) -> dict:
-        """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of 
+        """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of
         the battery for the current day.
         :param battery_id: The battery's id
         :type battery_id: str
@@ -480,7 +480,7 @@ class FusionSolarClient:
         battery_data["data"]["30007"]["name"] = "SOC"
 
         return battery_data["data"]
-    
+
 
     @logged_in
     def get_battery_module_stats(
@@ -522,7 +522,7 @@ class FusionSolarClient:
             )
 
         return battery_data["data"]
-    
+
 
     @logged_in
     def get_battery_status(self, battery_id: str) -> dict:
@@ -534,13 +534,13 @@ class FusionSolarClient:
         """
 
         r = self._session.get(
-            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data", 
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data",
             params={
                 "deviceDn": battery_id,
                 "_": round(time.time() * 1000),
             }
         )
-        
+
         r.raise_for_status()
         battery_data = r.json()
 
@@ -550,7 +550,7 @@ class FusionSolarClient:
             )
 
         return battery_data["data"][1]["signals"]
-    
+
 
     @logged_in
     def active_power_control(self, power_setting) -> None:
