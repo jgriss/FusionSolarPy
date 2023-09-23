@@ -103,7 +103,7 @@ client.log_out()
 
 ### Captcha solving
 
-Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue. 
+Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue.
 
 #### Simple usage
 1. Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again.
@@ -113,21 +113,23 @@ Sometimes, if logging in too often, the API will return a captcha. If you let yo
 from fusion_solar_py.client import FusionSolarClient
 
 client = FusionSolarClient(
-    'my_user', 
-    'my_password', 
+    'my_user',
+    'my_password',
     captcha_model_path="C:/Users/user/models/captcha_huawei.onnx"
 )
 ```
-Per default, the captcha solver will use the CPU for inference, which should be fast enough (~200ms). If you want to use the GPU, please refer to the [onnx documentation](https://onnxruntime.ai/docs/execution-providers/) on how to install the necessary packages.
+By default, the captcha solver will use the CPU for inference, which should be fast enough (~200ms). If you want to use the GPU, please refer to the [onnx documentation](https://onnxruntime.ai/docs/execution-providers/) on how to install the necessary packages.
+You can pass the device configuration via the `captcha_device` parameter.
 
+Example:
 ```python
 from fusion_solar_py.client import FusionSolarClient
 
 # Using GPU if available, otherwise CPU
 client = FusionSolarClient(
-    'my_user', 
-    'my_password', 
-    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx", 
+    'my_user',
+    'my_password',
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx",
     captcha_device=['CUDAExecutionProvider', 'CPUExecutionProvider']
 )
 ```
@@ -144,8 +146,8 @@ from fusion_solar_py.client import FusionSolarClient
 
 session = requests.Session()
 client = FusionSolarClient(
-    'my_user', 
-    'my_password', 
+    'my_user',
+    'my_password',
     session=session
 )
 
@@ -288,7 +290,7 @@ This function retrieves the current status of the battery. It returns a list of 
 
 <details>
   <summary>Example output</summary>
-  
+
 ```python
 [
     {
