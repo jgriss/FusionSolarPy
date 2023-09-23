@@ -135,6 +135,7 @@ client = FusionSolarClient(
 ### Session reuse
 
 In case you have to reestablish the connection to the API many times (e.g. for usage with Telegraf), you might want to reuse the session. This can be done by passing the `session` parameter to the client. The session needs to be a `requests.Session` object. If you don't pass a session, a new one will be created.
+Reusing a session will significantly reduce the chance of getting a captcha, since the API counts logins, not hits for rate limiting.
 
 ```python
 import requests
