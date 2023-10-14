@@ -117,13 +117,13 @@ class FusionSolarClientTest(TestCase):
         plant_ids = client.get_plant_ids()
 
         # get the stats
-        stats = client.get_plant_flow(plant_ids[0])
+        battery_ids = client.get_battery_ids(plant_id=plant_ids[0])
 
-        battery_stats = stats['data']['flow']['nodes'][4]['deviceTips']
-        battery_id = stats['data']['flow']['nodes'][4]["devIds"][0]
+        # to enable tests on systems without batteries
+        if len(battery_ids) < 1:
+            return
 
-        self.assertIsInstance(battery_stats, dict)
-        self.assertIsNotNone(battery_id)
+        battery_id = battery_ids[0]
 
         battery_day_stats = client.get_battery_day_stats(battery_id)
 
