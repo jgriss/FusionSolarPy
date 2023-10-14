@@ -16,3 +16,11 @@ class AuthenticationException(FusionSolarException):
     :type FusionSolarException: _type_
     """
     pass
+
+class CaptchaRequiredException(FusionSolarException):
+    """A captcha is required for the login flow to proceed
+
+    :param FusionSolarException: _description_
+    :type FusionSolarException: _type_
+    """
+    pass
