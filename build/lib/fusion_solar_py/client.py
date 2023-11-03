@@ -281,9 +281,7 @@ class FusionSolarClient:
             error = r.json()["errorMsg"]
 
         if error:
-            # only attempt to solve the captcha if it hasn't been tried before and
-            # a model path is available
-            if "incorrect verification code" in error.lower() and allow_captcha_exception and self._captcha_model_path:
+            if "incorrect verification code" in error.lower() and allow_captcha_exception:
                 raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
                 f"Failed to login into FusionSolarAPI: { error }"
