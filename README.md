@@ -27,7 +27,7 @@ these requirements, use the command:
 pip install fusion_solar_py[captcha]
 ```
 
-Note that these require python >= 3.9
+Note that these require python >= 3.8
 
 ## Usage
 
@@ -120,7 +120,7 @@ By default, the requirements to solve CAPTCHAs are not insalled. To install them
 pip install fusion_solar_py[captcha]
 ```
 
-Note that these require python >= 3.9
+Note that these require python >= 3.8
 
 #### Simple usage
 1. Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again.
