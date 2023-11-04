@@ -128,7 +128,7 @@ def with_solver(func):
             kwargs["allow_captcha_exception"] = False
             # check if captcha is required and populate self._verify_code
             # clear previous verify code if there was one for the check later
-            self._verify_code = None
+            self._captcha_verify_code = None
             captcha_present = self._check_captcha()
             if not captcha_present:
                 raise AuthenticationException("Login failed: Captcha required but captcha not found.")
