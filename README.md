@@ -20,6 +20,15 @@ Simply install from pypi using:
 pip install fusion_solar_py
 ```
 
+By default, libraries required for solving CAPTCHAs are not installed. To also install
+these requirements, use the command:
+
+```bash
+pip install fusion_solar_py[captcha]
+```
+
+Note that these require python >= 3.8
+
 ## Usage
 
 The basic usage centers around the `FusionSolarClient` class. It currently
@@ -104,6 +113,14 @@ client.log_out()
 ### Captcha solving
 
 Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue.
+
+By default, the requirements to solve CAPTCHAs are not insalled. To install them, use
+
+```bash
+pip install fusion_solar_py[captcha]
+```
+
+Note that these require python >= 3.8
 
 #### Simple usage
 1. Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again.

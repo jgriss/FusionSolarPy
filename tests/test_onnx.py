@@ -1,7 +1,11 @@
 import cv2
 import os
-
+import sys
 import unittest
+
+currentdir = os.path.dirname(__file__)
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, os.path.join(parentdir, "src")) 
 
 from fusion_solar_py.captcha_solver_onnx import Solver
 
