@@ -358,7 +358,7 @@ class FusionSolarClient:
         """
         if date is None:
             date = datetime.now()
-        print(date)
+        #print(date)
         #date='2023-11-19 00:00:00'
         url = f"https://region02eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance"
         params = {
@@ -367,14 +367,14 @@ class FusionSolarClient:
             "queryTime": round(time.time()  * 1000),
             "timeZone": 1,
             "timeZoneStr": 'Europe/Berlin',
-            "dateStr": date,
+            "dateStr": date.replace(hour=0, minute=0, second=0, microsecond=0),
             "_": round(time.time() * 1000),
         }
         
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
         data_obj = r.json()
-        # time series are
+        # time series are:
         # xAxis
         # selfUsePower
         # dischargePower
