@@ -16,6 +16,25 @@ from .constants import MODULE_SIGNALS
 _LOGGER = logging.getLogger(__name__)
 
 
+class DayData:
+    """Class representing the data for one day"""
+
+    def __init__(
+        self,
+        day: datetime.date,
+        data: dict
+    ):
+        """Create a new DayData object
+        :day The  of the day of the time series 
+        :data dictionary collecting all data recorded on the day
+        """
+        self.day = day
+        self.data = data
+
+    def __repr__(self):
+        return f"data={self.data},DayData(date={self.day})"
+
+
 class PowerStatus:
     """Class representing the basic power status"""
 
@@ -329,6 +348,52 @@ class FusionSolarClient:
             "csrfToken"
         ]  # needed for post requests, otherwise it will return 401
 
+
+    @logged_in
+    def get_daily_data(self,plant_id,date=None) -> DayData:
+        """Retrieve the data for one day. 
+        :plant_id: id of the plant, e.g."NE=36194084": string
+        :date: date of the day to query: datetime.date 
+        :return: The daily data as a DayData object
+        """
+        if date is None:
+            date = datetime.now()
+        print(date)
+        #date='2023-11-19 00:00:00'
+        url = f"https://region02eu5.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/energy-balance"
+        params = {
+            "stationDn": plant_id,
+            "timeDim": 2,
+            "queryTime": round(time.time()  * 1000),
+            "timeZone": 1,
+            "timeZoneStr": 'Europe/Berlin',
+            "dateStr": date,
+            "_": round(time.time() * 1000),
+        }
+        
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+        data_obj = r.json()
+        # time series are
+        # xAxis
+        # selfUsePower
+        # dischargePower
+        # radiationDosePower
+        # mainsUsePower
+        # chargePower
+        # onGridPower
+        # dieselProductPower
+        # disGridPower
+        # productPower
+        # usePower
+
+        day_data = DayData(
+            day=date,
+            data=data_obj["data"]
+        )
+        return day_data
+
+
     @logged_in
     def get_power_status(self) -> PowerStatus:
         """Retrieve the current power status. This is the complete
@@ -338,15 +403,14 @@ class FusionSolarClient:
 
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/station/total-real-kpi"
         params = {
-            "queryTime": round(time.time() * 1000),
+            "queryTime": round(time.time()  * 1000),
             "timeZone": 1,
             "_": round(time.time() * 1000),
         }
-
+        
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
         power_obj = r.json()
-
         power_status = PowerStatus(
             current_power_kw=power_obj["data"]["currentPower"],
             total_power_today_kwh=power_obj["data"]["dailyEnergy"],
