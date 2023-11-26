@@ -110,5 +110,33 @@ class FusionSolarClientTest(TestCase):
         with open("/tmp/station_list.json", "w") as writer:
             json.dump(station_list, writer, indent=3)
 
+    def test_get_battery_stats(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        # get the plant ids
+        plant_ids = client.get_plant_ids()
+
+        # get the stats
+        battery_ids = client.get_battery_ids(plant_id=plant_ids[0])
+
+        # to enable tests on systems without batteries
+        if len(battery_ids) < 1:
+            return
+
+        battery_id = battery_ids[0]
+
+        battery_day_stats = client.get_battery_day_stats(battery_id)
+
+        self.assertIsInstance(battery_day_stats, dict)
+
+        battery_stats = client.get_battery_module_stats(battery_id)
+
+        self.assertIn("30005", battery_stats)
+        self.assertIn("30007", battery_stats)
+
+        battery_rt_stats = client.get_battery_status(battery_id)
+
+        self.assertIsInstance(battery_rt_stats, dict)
+
     def test_incorrect_subdomain(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, self.user, self.password, "region04eu5")

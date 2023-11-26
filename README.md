@@ -20,6 +20,15 @@ Simply install from pypi using:
 pip install fusion_solar_py
 ```
 
+By default, libraries required for solving CAPTCHAs are not installed. To also install
+these requirements, use the command:
+
+```bash
+pip install fusion_solar_py[captcha]
+```
+
+Note that these require python >= 3.8
+
 ## Usage
 
 The basic usage centers around the `FusionSolarClient` class. It currently
@@ -59,7 +68,12 @@ account.
 from fusion_solar_py.client import FusionSolarClient
 
 # log into the API - with proper credentials...
-client = FusionSolarClient("my_user", "my_password")
+client = client = FusionSolarClient(
+  "my_user",
+  "my_password",
+  huawei_subdomain="subdomain"
+)
+
 
 # get the plant ids
 plant_ids = client.get_plant_ids()
@@ -94,6 +108,73 @@ for x in client.get_optimizer_stats(client.get_device_ids()['Inverter']):
 
 # log out - just in case
 client.log_out()
+```
+
+### Captcha solving
+
+Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue.
+
+By default, the requirements to solve CAPTCHAs are not insalled. To install them, use
+
+```bash
+pip install fusion_solar_py[captcha]
+```
+
+Note that these require python >= 3.8
+
+#### Simple usage
+1. Download the weights of the captcha solver [captcha_huawei.onnx](models/captcha_huawei.onnx) and save it somewhere you can find it again.
+2. Pass the path to the weights to the client in the `captcha_model_path` parameter.
+
+```python
+from fusion_solar_py.client import FusionSolarClient
+
+client = FusionSolarClient(
+    'my_user',
+    'my_password',
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx"
+)
+```
+By default, the captcha solver will use the CPU for inference, which should be fast enough (~200ms). If you want to use the GPU, please refer to the [onnx documentation](https://onnxruntime.ai/docs/execution-providers/) on how to install the necessary packages.
+You can pass the device configuration via the `captcha_device` parameter.
+
+Example:
+```python
+from fusion_solar_py.client import FusionSolarClient
+
+# Using GPU if available, otherwise CPU
+client = FusionSolarClient(
+    'my_user',
+    'my_password',
+    captcha_model_path="C:/Users/user/models/captcha_huawei.onnx",
+    captcha_device=['CUDAExecutionProvider', 'CPUExecutionProvider']
+)
+```
+
+### Session reuse
+
+In case you have to reestablish the connection to the API many times (e.g. for usage with Telegraf), you might want to reuse the session. This can be done by passing the `session` parameter to the client. The session needs to be a `requests.Session` object. If you don't pass a session, a new one will be created.
+Reusing a session will significantly reduce the chance of getting a captcha, since the API counts logins, not hits for rate limiting.
+
+```python
+import requests
+import pickle
+from fusion_solar_py.client import FusionSolarClient
+
+session = requests.Session()
+client = FusionSolarClient(
+    'my_user',
+    'my_password',
+    session=session
+)
+
+# To save the session for later use (e.g. if you have to run the script multiple times), you can use pickle and save the session to the disk
+with open('session.pkl', 'wb') as f:
+    pickle.dump(session, f)
+
+# To load the session, you can use pickle again
+with open('session.pkl', 'rb') as f:
+    session = pickle.load(f)
 ```
 
 ## Available plant data / stats
@@ -141,3 +222,167 @@ These are returned as lists of values. The matching timepoints are found in the
   * **disGridPower**: (Probably) The amount of power taken from the grid.
   * **productPower**: Amounf of power produced by the PV.
   * **usePower**: Amount of power used.
+
+## Available battery stats
+
+### [get_battery_ids(plant_id)](src/fusion_solar_py/client.py#L417)
+
+This function returns a list of battery IDs from the given plant. The returned battery ID is used for the other battery functions.
+
+### [get_battery_basic_stats(battery_id)](src/fusion_solar_py/client.py#L433)
+
+This function returns a `BatteryStatus` object. It takes the information from [get_battery_status(battery_id)](#get_battery_status(battery_id)) and just provides an easy wrapper, similar to [get_power_status()](src/fusion_solar_py/client.py#L325). It contains the following information:
+
+* **`rated_capacity`**: The total capacity of the battery in kWh
+* **`operating_status`**: The current operating status of the battery
+* **`backup_time`**: The time the battery can run on its own (we think - our battery doesn't have this value)
+* **`bus_voltage`**: The current bus voltage in V
+* **`total_charged_today_kwh`**: The total amount of energy charged today in kWh
+* **`total_discharged_today_kwh`**: The total amount of energy discharged today in kWh
+* **`current_charge_discharge_kw`**: The current charge/discharge power in kW
+
+
+### [get_battery_day_stats(battery_id)](src/fusion_solar_py/client.py#L454)
+
+This function returns a list of dicts, where each dict is a timestamp. Each dict is 5 minutes apart. It contains **charge/discharge power** and **state of charge (SOC)**
+<details>
+<summary>Example output</summary>
+
+```python
+{
+    '30005': {
+        'pmDataList': [
+            {
+                'counterId': 30005,
+                'counterValue': -0.262,  # Negative means discharge, positive means charge
+                'dnId': 123456,  # Battery ID
+                'dstOffset': 60,
+                'period': 300,
+                'startTime': 1694988000,  # UNIX timestamp
+                'timeZoneOffset': 60
+            },
+            ...
+        ],
+        'total': int,
+        'name': 'Charge/Discharge power'
+    },
+    '30007': {
+        'pmDataList': [
+            {
+                'counterId': 30007,
+                'counterValue': 56.0,  # SOC in %
+                'dnId': 123456,  # Battery ID
+                'dstOffset': 60,
+                'period': 300,
+                'startTime': 1694988000,  # UNIX timestamp
+                'timeZoneOffset': 60
+            },
+            ...
+        ],
+        'total': int,
+        'name': 'SOC'
+    }
+}
+```
+</details>
+
+### [get_battery_module_stats(battery_id, module_id="1", signal_ids=None)](src/fusion_solar_py/client.py#L486)
+
+This function retrieves the complete stats for the given battery module of the latest recorded time. It returns a list of dicts. For the details of the dicts, please see [signals.md](signals.md)
+
+
+### [get_battery_status(battery_id)](src/fusion_solar_py/client.py#L528)
+
+This function retrieves the current status of the battery. It returns a list of dicts. We haven't figured out the meaning of all the modes yet.
+
+* **Battery operating status**
+* **Charge/Discharge mode**
+* **Rated capacity**: Probably the total capacity of the battery in kWh
+* **Backup time**: Probably the time the battery can run on its own
+* **Energy charged today**: The total amount of energy charged today in kWh
+* **Energy discharged today**: The total amount of energy discharged today in kWh
+* **Charge/Discharge power**: The current charge/discharge power in kW
+* **Bus voltage**: The current bus voltage in V
+* **SOC**: The current state of charge in %
+
+<details>
+  <summary>Example output</summary>
+
+```python
+[
+    {
+        'id': 10003,
+        'latestTime': 1695047841,
+        'name': 'Battery operating status',
+        'realValue': '2',
+        'unit': '',
+        'value': 'Operating'
+    },
+    {
+        'id': 10008,
+        'latestTime': 1695047841,
+        'name': 'Charge/Discharge mode',
+        'realValue': '4',
+        'unit': '',
+        'value': 'Maximum self-consumption'
+    },
+    {
+        'id': 10013,
+        'latestTime': 1695062404,
+        'name': 'Rated capacity',
+        'realValue': '5.000',
+        'unit': 'kWh',
+        'value': '5.000'
+    },
+    {
+        'id': 10015,
+        'latestTime': 1695062404,
+        'name': 'Backup time',
+        'realValue': 'N/A',
+        'unit': 'min',
+        'value': '-'
+    },
+    {
+        'id': 10001,
+        'latestTime': 1695062404,
+        'name': 'Energy charged today',
+        'realValue': '3.72',
+        'unit': 'kWh',
+        'value': '3.72'
+    },
+    {
+        'id': 10002,
+        'latestTime': 1695062404,
+        'name': 'Energy discharged today',
+        'realValue': '4.83',
+        'unit': 'kWh',
+        'value': '4.83'
+    },
+    {
+        'id': 10004,
+        'latestTime': 1695062404,
+        'name': 'Charge/Discharge power',
+        'realValue': '-0.485',
+        'unit': 'kW',
+        'value': '-0.485'
+    },
+    {
+        'id': 10005,
+        'latestTime': 1695062404,
+        'name': 'Bus voltage',
+        'realValue': '766.7',
+        'unit': 'V',
+        'value': '766.7'
+    },
+    {
+        'id': 10006,
+        'latestTime': 1695062404,
+        'name': 'SOC',
+        'realValue': '31.0',
+        'unit': '%',
+        'value': '31.0'
+    }
+]
+```
+</details>
+

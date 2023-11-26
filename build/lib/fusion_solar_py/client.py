@@ -22,31 +22,20 @@ class PowerStatus:
     def __init__(
         self,
         current_power_kw: float,
-        energy_today_kwh: float,
-        energy_kwh: float,
-        **kwargs
+        total_power_today_kwh: float,
+        total_power_kwh: float,
     ):
         """Create a new PowerStatus object
         :param current_power_kw: The currently produced power in kW
         :type current_power_kw: float
-        :param energy_today_kwh: The total power produced that day in kWh
-        :type energy_today_kwh: float
-        :param energy_kwh: The total power ever produced
-        :type energy_kwh: float
+        :param total_power_today_kwh: The total power produced that day in kWh
+        :type total_power_today_kwh: float
+        :param total_power_kwh: The total power ever produced
+        :type total_power_kwh: float
         """
         self.current_power_kw = current_power_kw
-        self.energy_today_kwh = energy_today_kwh
-        self.energy_kwh = energy_kwh
-
-        if ('total_power_today_kwh' in kwargs.keys()
-                or 'total_power_kwh' in kwargs.keys()):
-            # warn the user that the old parameters are deprecated
-            _LOGGER.warning(
-                "The parameters 'total_power_today_kwh' and 'total_power_kwh' are "
-                "deprecated. Please use 'energy_today_kwh' and 'energy_kwh' instead.",
-                DeprecationWarning
-            )
-
+        self.total_power_today_kwh = total_power_today_kwh
+        self.total_power_kwh = total_power_kwh
 
     def __repr__(self):
         return f"PowerStatus(current_power_kw={self.current_power_kw}, total_power_today_kwh={self.total_power_today_kwh}, total_power_kwh={self.total_power_kwh})"
@@ -292,9 +281,7 @@ class FusionSolarClient:
             error = r.json()["errorMsg"]
 
         if error:
-            # only attempt to solve the captcha if it hasn't been tried before and
-            # a model path is available
-            if "incorrect verification code" in error.lower() and allow_captcha_exception and self._captcha_model_path:
+            if "incorrect verification code" in error.lower() and allow_captcha_exception:
                 raise CaptchaRequiredException("Login failed: Incorrect verification code.")
             raise AuthenticationException(
                 f"Failed to login into FusionSolarAPI: { error }"
@@ -360,8 +347,8 @@ class FusionSolarClient:
 
         power_status = PowerStatus(
             current_power_kw=power_obj["data"]["currentPower"],
-            energy_today_kwh=power_obj["data"]["dailyEnergy"],
-            energy_kwh=power_obj["data"]["cumulativeEnergy"],
+            total_power_today_kwh=power_obj["data"]["dailyEnergy"],
+            total_power_kwh=power_obj["data"]["cumulativeEnergy"],
         )
 
         return power_status
