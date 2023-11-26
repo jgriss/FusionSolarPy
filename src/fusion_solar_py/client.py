@@ -22,8 +22,8 @@ class PowerStatus:
     def __init__(
         self,
         current_power_kw: float,
-        energy_today_kwh: float,
-        energy_kwh: float,
+        energy_today_kwh: float = None,
+        energy_kwh: float = None,
         **kwargs
     ):
         """Create a new PowerStatus object
@@ -33,23 +33,48 @@ class PowerStatus:
         :type energy_today_kwh: float
         :param energy_kwh: The total power ever produced
         :type energy_kwh: float
+        :param kwargs: Deprecated parameters
         """
         self.current_power_kw = current_power_kw
         self.energy_today_kwh = energy_today_kwh
         self.energy_kwh = energy_kwh
 
-        if ('total_power_today_kwh' in kwargs.keys()
-                or 'total_power_kwh' in kwargs.keys()):
-            # warn the user that the old parameters are deprecated
+        if 'total_power_today_kwh' in kwargs.keys() and not energy_today_kwh:
             _LOGGER.warning(
-                "The parameters 'total_power_today_kwh' and 'total_power_kwh' are "
-                "deprecated. Please use 'energy_today_kwh' and 'energy_kwh' instead.",
-                DeprecationWarning
+                "The parameter 'total_power_today_kwh' is deprecated. Please use "
+                "'energy_today_kwh' instead.", DeprecationWarning
             )
+            self.energy_today_kwh = kwargs['total_power_today_kwh']
 
+        if 'total_power_kwh' in kwargs.keys() and not energy_kwh:
+            _LOGGER.warning(
+                "The parameter 'total_power_kwh' is deprecated. Please use "
+                "'energy_kwh' instead.", DeprecationWarning
+            )
+            self.energy_kwh = kwargs['total_power_kwh']
+
+    @property
+    def total_power_today_kwh(self):
+        """The total power produced that day in kWh"""
+        _LOGGER.warning(
+            "The parameter 'total_power_today_kwh' is deprecated. Please use "
+            "'energy_today_kwh' instead.", DeprecationWarning
+        )
+        return self.energy_today_kwh
+
+    @property
+    def total_power_kwh(self):
+        """The total power ever produced"""
+        _LOGGER.warning(
+            "The parameter 'total_power_kwh' is deprecated. Please use "
+            "'energy_kwh' instead.", DeprecationWarning
+        )
+        return self.energy_kwh
 
     def __repr__(self):
-        return f"PowerStatus(current_power_kw={self.current_power_kw}, total_power_today_kwh={self.total_power_today_kwh}, total_power_kwh={self.total_power_kwh})"
+        return (f"PowerStatus(current_power_kw={self.current_power_kw}, "
+                f"energy_today_kwh={self.energy_today_kwh}, "
+                f"energy_kwh={self.energy_kwh})")
 
 
 class BatteryStatus:
