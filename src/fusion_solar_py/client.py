@@ -21,6 +21,7 @@ class PowerStatus:
         current_power_kw: float,
         energy_today_kwh: float,
         energy_kwh: float,
+        **kwargs
     ):
         """Create a new PowerStatus object
         :param current_power_kw: The currently produced power in kW
@@ -33,6 +34,16 @@ class PowerStatus:
         self.current_power_kw = current_power_kw
         self.energy_today_kwh = energy_today_kwh
         self.energy_kwh = energy_kwh
+
+        if ('total_power_today_kwh' in kwargs.keys()
+                or 'total_power_kwh' in kwargs.keys()):
+            # warn the user that the old parameters are deprecated
+            _LOGGER.warning(
+                "The parameters 'total_power_today_kwh' and 'total_power_kwh' are "
+                "deprecated. Please use 'energy_today_kwh' and 'energy_kwh' instead.",
+                DeprecationWarning
+            )
+
 
 
 def logged_in(func):
