@@ -128,12 +128,12 @@ def with_solver(func):
             kwargs["allow_captcha_exception"] = False
             # check if captcha is required and populate self._verify_code
             # clear previous verify code if there was one for the check later
-            self._verify_code = None
+            self._captcha_verify_code = None
             captcha_present = self._check_captcha()
             if not captcha_present:
                 raise AuthenticationException("Login failed: Captcha required but captcha not found.")
 
-            if self._verify_code is not None:
+            if self._captcha_verify_code is not None:
                 result = func(self, *args, **kwargs)
             else:
                 raise AuthenticationException("Login failed: no verify code found.")
@@ -174,6 +174,7 @@ class FusionSolarClient:
             self._session = requests.Session()
         else:
             self._session = session
+        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
