@@ -53,8 +53,8 @@ stats = client.get_power_status()
 
 # print all stats
 print(f"Current power: {stats.current_power_kw} kW")
-print(f"Total power today: {stats.total_power_today_kwh} kWh")
-print(f"Total power: {stats.total_power_kwh} kWh")
+print(f"Total power today: {stats.energy_today_kwh} kWh")
+print(f"Total power: {stats.energy_kwh} kWh")
 
 # log out - just in case
 client.log_out()
