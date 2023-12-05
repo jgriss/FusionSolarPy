@@ -54,6 +54,7 @@ class PowerStatus:
             self.energy_kwh = kwargs['total_power_kwh']
 
     @property
+    @DeprecationWarning
     def total_power_today_kwh(self):
         """The total power produced that day in kWh"""
         _LOGGER.warning(
@@ -63,6 +64,7 @@ class PowerStatus:
         return self.energy_today_kwh
 
     @property
+    @DeprecationWarning
     def total_power_kwh(self):
         """The total power ever produced"""
         _LOGGER.warning(
