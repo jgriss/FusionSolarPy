@@ -16,7 +16,7 @@ import collections
 try:
   import numpy as np
 except ImportError:
-  print("Required libraries for CAPTCHA solving are not available. Please install the package using pip install funsion_solar_py[captcha].")
+  print("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
 
 NEG_INF = -float("inf")
 

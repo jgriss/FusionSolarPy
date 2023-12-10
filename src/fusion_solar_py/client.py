@@ -250,7 +250,7 @@ class FusionSolarClient:
         try:
             import bs4
         except ImportError:
-            _LOGGER.error("Required libraries for CAPTCHA solving are not available. Please install the package using pip install funsion_solar_py[captcha].")
+            _LOGGER.error("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
             raise Exception("Required libraries for CAPTCHA solving are not available.")
 
         _LOGGER.debug("Checking if captcha is required")
