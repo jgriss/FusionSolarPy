@@ -218,6 +218,8 @@ class FusionSolarClient:
         self._company_id = None
         if self._huawei_subdomain.startswith("region"):
             self._login_subdomain = self._huawei_subdomain[8:]
+        elif self._huawei_subdomain.startswith("uni"):
+            self._login_subdomain = self._huawei_subdomain[6:]
         else:
             self._login_subdomain = self._huawei_subdomain
 
@@ -310,14 +312,28 @@ class FusionSolarClient:
             # invalidate verify code after use
             self._captcha_verify_code = None
 
+        # adapt the parameters for the new login procedure
+        if self._huawei_subdomain.startswith("uni"):
+            params = {"timeStamp": 1705091707212, "nonce": "5e9adbab77567a2d5b684b61bad8b3"}
+
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)
         r.raise_for_status()
 
-        # make sure that the login worked
+        login_response = r.json()
+
+        # detect the new login procedure
+        if login_response["errorCode"] == "470":
+            _LOGGER.debug("Detected new login procedure, sending additional request...")
+            # this requires fireing off another request
+            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{login_response['respMultiRegionName'][1]}"
+            new_procedure_response = self._session.get(target_url)
+            new_procedure_response.raise_for_status()
+
+        # make sure that the login worked - NOTE: This may no longer work with the new procedure
         error = None
-        if r.json()["errorMsg"]:
-            error = r.json()["errorMsg"]
+        if login_response["errorMsg"]:
+            error = login_response["errorMsg"]
 
         if error:
             # only attempt to solve the captcha if it hasn't been tried before and
@@ -364,9 +380,14 @@ class FusionSolarClient:
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
         )
         r.raise_for_status()
-        self._session.headers["roarand"] = r.json()[
-            "csrfToken"
-        ]  # needed for post requests, otherwise it will return 401
+
+        try:
+            self._session.headers["roarand"] = r.json()[
+                "csrfToken"
+            ]  # needed for post requests, otherwise it will return 401
+        except json.JSONDecodeError:
+            # this currently does not work in the new login procedure
+            pass
 
     @logged_in
     def get_power_status(self) -> PowerStatus:

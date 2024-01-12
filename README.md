@@ -110,6 +110,12 @@ for x in client.get_optimizer_stats(client.get_device_ids()['Inverter']):
 client.log_out()
 ```
 
+### New uni000 subdomains
+
+It seems that some accounts are currently being moved to a new version of the web application. These can be recognized by the new "uni...eu5" subdomain (f.e. `uni002eu5`).
+
+This new version apparently requires a new login procedure which is supported since version 0.0.19. Yet, it is unclear whther the Captcha solving also still works. Finally, other features may be affected as well. Therefore, in case your account was moved to a "uni..." subdomain and you experience issues, please post a respective `Issue` here.
+
 ### Captcha solving
 
 Sometimes, if logging in too often, the API will return a captcha. If you let your script run continuously, you shouldn't run into this issue. In case you rerun the script often, providing a captcha solver resolves this issue.
