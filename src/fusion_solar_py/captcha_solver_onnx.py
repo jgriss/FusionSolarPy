@@ -5,8 +5,8 @@ try:
     import numpy as np
     import onnxruntime as rt
 except ImportError:
-    print("Required libraries for CAPTCHA solving are not available. Please install the package using pip install funsion_solar_py[captcha].")
-    raise FusionSolarException("Required libraries for CAPTCHA solving are not available. Please install the package using pip install funsion_solar_py[captcha].")
+    print("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
+    raise FusionSolarException("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
 
 from fusion_solar_py.interfaces import GenericSolver
 

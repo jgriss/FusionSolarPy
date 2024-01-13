@@ -41,23 +41,61 @@ class PowerStatus:
     def __init__(
         self,
         current_power_kw: float,
-        total_power_today_kwh: float,
-        total_power_kwh: float,
+        energy_today_kwh: float = None,
+        energy_kwh: float = None,
+        **kwargs
     ):
         """Create a new PowerStatus object
         :param current_power_kw: The currently produced power in kW
         :type current_power_kw: float
-        :param total_power_today_kwh: The total power produced that day in kWh
-        :type total_power_today_kwh: float
-        :param total_power_kwh: The total power ever produced
-        :type total_power_kwh: float
+        :param energy_today_kwh: The total power produced that day in kWh
+        :type energy_today_kwh: float
+        :param energy_kwh: The total power ever produced
+        :type energy_kwh: float
+        :param kwargs: Deprecated parameters
         """
         self.current_power_kw = current_power_kw
-        self.total_power_today_kwh = total_power_today_kwh
-        self.total_power_kwh = total_power_kwh
+        self.energy_today_kwh = energy_today_kwh
+        self.energy_kwh = energy_kwh
+
+        if 'total_power_today_kwh' in kwargs.keys() and not energy_today_kwh:
+            _LOGGER.warning(
+                "The parameter 'total_power_today_kwh' is deprecated. Please use "
+                "'energy_today_kwh' instead.", DeprecationWarning
+            )
+            self.energy_today_kwh = kwargs['total_power_today_kwh']
+
+        if 'total_power_kwh' in kwargs.keys() and not energy_kwh:
+            _LOGGER.warning(
+                "The parameter 'total_power_kwh' is deprecated. Please use "
+                "'energy_kwh' instead.", DeprecationWarning
+            )
+            self.energy_kwh = kwargs['total_power_kwh']
+
+    @property
+    @DeprecationWarning
+    def total_power_today_kwh(self):
+        """The total power produced that day in kWh"""
+        _LOGGER.warning(
+            "The parameter 'total_power_today_kwh' is deprecated. Please use "
+            "'energy_today_kwh' instead.", DeprecationWarning
+        )
+        return self.energy_today_kwh
+
+    @property
+    @DeprecationWarning
+    def total_power_kwh(self):
+        """The total power ever produced"""
+        _LOGGER.warning(
+            "The parameter 'total_power_kwh' is deprecated. Please use "
+            "'energy_kwh' instead.", DeprecationWarning
+        )
+        return self.energy_kwh
 
     def __repr__(self):
-        return f"PowerStatus(current_power_kw={self.current_power_kw}, total_power_today_kwh={self.total_power_today_kwh}, total_power_kwh={self.total_power_kwh})"
+        return (f"PowerStatus(current_power_kw={self.current_power_kw}, "
+                f"energy_today_kwh={self.energy_today_kwh}, "
+                f"energy_kwh={self.energy_kwh})")
 
 
 class BatteryStatus:
@@ -147,12 +185,12 @@ def with_solver(func):
             kwargs["allow_captcha_exception"] = False
             # check if captcha is required and populate self._verify_code
             # clear previous verify code if there was one for the check later
-            self._verify_code = None
+            self._captcha_verify_code = None
             captcha_present = self._check_captcha()
             if not captcha_present:
                 raise AuthenticationException("Login failed: Captcha required but captcha not found.")
 
-            if self._verify_code is not None:
+            if self._captcha_verify_code is not None:
                 result = func(self, *args, **kwargs)
             else:
                 raise AuthenticationException("Login failed: no verify code found.")
@@ -193,11 +231,14 @@ class FusionSolarClient:
             self._session = requests.Session()
         else:
             self._session = session
+        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
         if self._huawei_subdomain.startswith("region"):
             self._login_subdomain = self._huawei_subdomain[8:]
+        elif self._huawei_subdomain.startswith("uni"):
+            self._login_subdomain = self._huawei_subdomain[6:]
         else:
             self._login_subdomain = self._huawei_subdomain
 
@@ -230,7 +271,7 @@ class FusionSolarClient:
         try:
             import bs4
         except ImportError:
-            _LOGGER.error("Required libraries for CAPTCHA solving are not available. Please install the package using pip install funsion_solar_py[captcha].")
+            _LOGGER.error("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
             raise Exception("Required libraries for CAPTCHA solving are not available.")
 
         _LOGGER.debug("Checking if captcha is required")
@@ -290,14 +331,28 @@ class FusionSolarClient:
             # invalidate verify code after use
             self._captcha_verify_code = None
 
+        # adapt the parameters for the new login procedure
+        if self._huawei_subdomain.startswith("uni"):
+            params = {"timeStamp": 1705091707212, "nonce": "5e9adbab77567a2d5b684b61bad8b3"}
+
         # send the request
         r = self._session.post(url=url, params=params, json=json_data)
         r.raise_for_status()
 
-        # make sure that the login worked
+        login_response = r.json()
+
+        # detect the new login procedure
+        if login_response["errorCode"] == "470":
+            _LOGGER.debug("Detected new login procedure, sending additional request...")
+            # this requires fireing off another request
+            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{login_response['respMultiRegionName'][1]}"
+            new_procedure_response = self._session.get(target_url)
+            new_procedure_response.raise_for_status()
+
+        # make sure that the login worked - NOTE: This may no longer work with the new procedure
         error = None
-        if r.json()["errorMsg"]:
-            error = r.json()["errorMsg"]
+        if login_response["errorMsg"]:
+            error = login_response["errorMsg"]
 
         if error:
             # only attempt to solve the captcha if it hasn't been tried before and
@@ -344,9 +399,14 @@ class FusionSolarClient:
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
         )
         r.raise_for_status()
-        self._session.headers["roarand"] = r.json()[
-            "csrfToken"
-        ]  # needed for post requests, otherwise it will return 401
+
+        try:
+            self._session.headers["roarand"] = r.json()[
+                "csrfToken"
+            ]  # needed for post requests, otherwise it will return 401
+        except json.JSONDecodeError:
+            # this currently does not work in the new login procedure
+            pass
 
 
     @logged_in
@@ -412,9 +472,9 @@ class FusionSolarClient:
         r.raise_for_status()
         power_obj = r.json()
         power_status = PowerStatus(
-            current_power_kw=power_obj["data"]["currentPower"],
-            total_power_today_kwh=power_obj["data"]["dailyEnergy"],
-            total_power_kwh=power_obj["data"]["cumulativeEnergy"],
+            current_power_kw=float( power_obj["data"]["currentPower"] ),
+            energy_today_kwh=float( power_obj["data"]["dailyEnergy"] ),
+            energy_kwh=float( power_obj["data"]["cumulativeEnergy"] ),
         )
 
         return power_status
