@@ -408,9 +408,9 @@ class FusionSolarClient:
         power_obj = r.json()
 
         power_status = PowerStatus(
-            current_power_kw=power_obj["data"]["currentPower"],
-            energy_today_kwh=power_obj["data"]["dailyEnergy"],
-            energy_kwh=power_obj["data"]["cumulativeEnergy"],
+            current_power_kw=float( power_obj["data"]["currentPower"] ),
+            energy_today_kwh=float( power_obj["data"]["dailyEnergy"] ),
+            energy_kwh=float( power_obj["data"]["cumulativeEnergy"] ),
         )
 
         return power_status
