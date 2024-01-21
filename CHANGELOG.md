@@ -1,3 +1,11 @@
+# 0.0.21
+
+  * Fixed bug in handling session configuration in new login procedure.
+
+# 0.0.20
+
+  * Added support for new login procedure in "unixxx" subdomains.
+
 # 0.0.14
 
   * Fixed login issue with subdomain "intl"

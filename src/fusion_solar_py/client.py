@@ -385,7 +385,7 @@ class FusionSolarClient:
             self._session.headers["roarand"] = r.json()[
                 "csrfToken"
             ]  # needed for post requests, otherwise it will return 401
-        except json.JSONDecodeError:
+        except Exception:
             # this currently does not work in the new login procedure
             pass
 
