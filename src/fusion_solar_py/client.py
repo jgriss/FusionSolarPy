@@ -415,12 +415,9 @@ class FusionSolarClient:
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
 
-        try:
-            power_obj = r.json()
-        except json.JSONDecodeError as e:
-            _LOGGER.error("Failed to retrieve power status. Invalid JSON object returned.")
-            _LOGGER.exception(e)
-            raise FusionSolarException("Failed to retrieve power status")
+        # errors in decoding the object generally mean that the login expired
+        # this is handeled by @logged_in
+        power_obj = r.json()
 
         power_status = PowerStatus(
             current_power_kw=float( power_obj["data"]["currentPower"] ),
