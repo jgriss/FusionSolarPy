@@ -1,3 +1,10 @@
+# 0.0.22
+
+  * Fixed detection of incorrect subdomains
+  * Added test for session reuse
+  * Removed deprecation decorators from PowerStatus as these clashed with @property 
+    decorators (functions will still be removed in the future)
+
 # 0.0.21
 
   * Fixed bug in handling session configuration in new login procedure.
