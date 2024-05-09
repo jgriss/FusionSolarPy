@@ -353,6 +353,19 @@ class FusionSolarClient:
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
             params={"_": round(time.time() * 1000)},
         )
+
+        # the new API returns a 500 exception if the subdomain is incorrect
+        if r.status_code == 500:
+            try:
+                data = r.json()
+
+                if data["exceptionId"] == "Query company failed.":
+                    raise AuthenticationException("Invalid response received. Please check the correct Huawei subdomain.")
+            except json.JSONDecodeError as e:
+                _LOGGER.error("Login validation failed. Failed to process response.")
+                _LOGGER.exception(e)
+                raise AuthenticationException("Failed to log into FusionSolarAPI.")
+
         r.raise_for_status()
 
         # catch an incorrect subdomain
