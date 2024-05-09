@@ -140,3 +140,19 @@ class FusionSolarClientTest(TestCase):
 
     def test_incorrect_subdomain(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, self.user, self.password, "region04eu5")
+
+    def test_session_reuse(self):
+        session = requests.Session()
+
+        client = FusionSolarClient(self.user, self.password, self.subdomain, session=session)
+
+        stats = client.get_power_status()
+
+        self.assertIsNotNone(stats)
+
+        # create a second client using the session
+        client2 = FusionSolarClient(self.user, self.password, self.subdomain, session=session)
+
+        stats2 = client2.get_power_status()
+
+        self.assertIsNotNone(stats2)
