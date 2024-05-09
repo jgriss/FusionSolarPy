@@ -54,23 +54,19 @@ class PowerStatus:
             self.energy_kwh = kwargs['total_power_kwh']
 
     @property
-    @DeprecationWarning
     def total_power_today_kwh(self):
         """The total power produced that day in kWh"""
         _LOGGER.warning(
             "The parameter 'total_power_today_kwh' is deprecated. Please use "
-            "'energy_today_kwh' instead.", DeprecationWarning
-        )
+            "'energy_today_kwh' instead.")
         return self.energy_today_kwh
 
     @property
-    @DeprecationWarning
     def total_power_kwh(self):
         """The total power ever produced"""
         _LOGGER.warning(
             "The parameter 'total_power_kwh' is deprecated. Please use "
-            "'energy_kwh' instead.", DeprecationWarning
-        )
+            "'energy_kwh' instead.")
         return self.energy_kwh
 
     def __repr__(self):
@@ -405,7 +401,13 @@ class FusionSolarClient:
 
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
-        power_obj = r.json()
+
+        try:
+            power_obj = r.json()
+        except json.JSONDecodeError as e:
+            _LOGGER.error("Failed to retrieve power status. Invalid JSON object returned.")
+            _LOGGER.exception(e)
+            raise FusionSolarException("Failed to retrieve power status")
 
         power_status = PowerStatus(
             current_power_kw=float( power_obj["data"]["currentPower"] ),
@@ -691,7 +693,8 @@ class FusionSolarClient:
             params={
                 "stationDn": plant_id,
                 "timeDim": 2,
-                "queryTime": query_time,
+                "queryTime": query_time, # TODO: this may have changed to micro-seconds ie. timestamp * 1000
+                # dateTime=2024-03-07 00:00:00
                 "timeZone": 2,  # 1 in no daylight
                 "timeZoneStr": "Europe/Vienna",
                 "_": round(time.time() * 1000),
