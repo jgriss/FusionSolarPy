@@ -141,13 +141,13 @@ def logged_in(func):
             _LOGGER.debug("No active session. Resetting session and logging in...")
 
             # reset the session
-            self._session = None
+            self._session = requests.Session()
             self._configure_session()
 
         try:
             result = func(self, *args, **kwargs)
-        except (json.JSONDecodeError, requests.exceptions.HTTPError):
-            # this indicatest that the login failed
+        except (json.JSONDecodeError):
+            # this may indicate that the login failed
             _LOGGER.error("Login apparently failed. Received invalid response.")
             raise FusionSolarException("Failed to reset session and login again.")
         
