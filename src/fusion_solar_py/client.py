@@ -136,12 +136,21 @@ def logged_in(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
+        # use the is-session-alive feature to check whether the session is active
+        if not self.is_session_active():
+            _LOGGER.debug("No active session. Resetting session and logging in...")
+
+            # reset the session
+            self._session = None
+            self._configure_session()
+
         try:
             result = func(self, *args, **kwargs)
         except (json.JSONDecodeError, requests.exceptions.HTTPError):
-            _LOGGER.info("Logging in")
-            self._configure_session()
-            result = func(self, *args, **kwargs)
+            # this indicatest that the login failed
+            _LOGGER.error("Login apparently failed. Received invalid response.")
+            raise FusionSolarException("Failed to reset session and login again.")
+        
         return result
 
     return wrapper
@@ -208,7 +217,6 @@ class FusionSolarClient:
             self._session = requests.Session()
         else:
             self._session = session
-        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
@@ -346,6 +354,9 @@ class FusionSolarClient:
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
 
+        # set the user agent
+        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+
         self._login()
 
         # get the main id
@@ -397,6 +408,51 @@ class FusionSolarClient:
         except Exception:
             # this currently does not work in the new login procedure
             pass
+
+    def is_session_active(self) -> bool:
+        """Tests whether the current session is active. In the web-based application, this
+        function is triggered every 10 seconds.
+
+        :return: Indicates whether the current session is active.
+        :rtype: bool
+        """
+        if not self._session:
+            return False
+        
+        # send the request
+        r = self._session.get(f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/dpcloud/auth/v1/is-session-alive")
+        r.raise_for_status()
+
+        # get the response
+        response_data = r.json()
+
+        if "code" not in response_data or response_data["code"] != 0:
+            return False
+        else:
+            return True
+        
+    @logged_in
+    def keep_alive(self) -> str:
+        """This function replicates a call sent by the web-based application. Currently,
+        the rate at which this function is called is unclear. It seems to be called around
+        every 30 seconds.
+
+        :return: This function returns the payload returned by the respective call
+        :rtype: str
+        """
+        r = self._session.get(f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/dpcloud/auth/v1/keep-alive")
+        r.raise_for_status()
+
+        response_data = r.json()
+
+        if "code" not in response_data or response_data["code"] != 0:
+            raise FusionSolarException("Failed to set keep alive.")
+        
+        # get the payload
+        if "payload" in response_data:
+            return response_data["payload"]
+
+        return None
 
     @logged_in
     def get_power_status(self) -> PowerStatus:

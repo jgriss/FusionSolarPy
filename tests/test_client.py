@@ -156,3 +156,21 @@ class FusionSolarClientTest(TestCase):
         stats2 = client2.get_power_status()
 
         self.assertIsNotNone(stats2)
+
+    def test_session_active(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        # now the session should be fine
+        self.assertTrue(client.is_session_active())
+
+        # add an invalid session object
+        client = FusionSolarClient(self.user, self.password, self.subdomain, session=requests.Session())
+
+        self.assertFalse(client.is_session_active())        
+
+    def test_keep_alive(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        payload = client.keep_alive()
+
+        self.assertIsNotNone(payload)
