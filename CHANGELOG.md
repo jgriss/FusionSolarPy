@@ -1,3 +1,8 @@
+# 0.0.23
+
+  * Added new functions `is_session_active` and `keep_alive`
+  * Adapted the @logged_in wrapper to use this new function
+
 # 0.0.22
 
   * Fixed detection of incorrect subdomains
