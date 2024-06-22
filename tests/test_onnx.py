@@ -13,12 +13,6 @@ currentdir = os.path.dirname(__file__)
 
 class TestInference(unittest.TestCase):
     def test_inference(self):
-        # only run if set
-        run_tests = os.getenv("TEST_ONNX", False)
-
-        if not run_tests:
-            return
-
         """Test if the inference works on the test image"""
         solver = Solver(os.path.join(currentdir, "../models/captcha_huawei.onnx"), device=["CPUExecutionProvider"])
         result = solver.solve_captcha(cv2.imread(os.path.join(currentdir, "test_img.png")))
