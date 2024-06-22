@@ -183,6 +183,13 @@ with open('session.pkl', 'rb') as f:
     session = pickle.load(f)
 ```
 
+### Keeping a session alive
+
+The new API version seems to use explicit functions to keep a session alive. Their usage is currently only derived from the web application. In order to support these calls, two new functions were added to the library in version 0.0.23.
+
+  * **is_session_active**: This checks, whether the session is still active and should be called around every 10 seconds.
+  * **keep_alive**: Potentially, this call tells the API to no discard the session. The web app calls this end-point around every 30 seconds.
+
 ## Available plant data / stats
 
 This is a list of variables and a (guessed) explanation of what they mean returnd from
