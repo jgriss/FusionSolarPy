@@ -1,3 +1,7 @@
+# 0.0.24
+
+  * Added new function `get_current_plant_data`
+
 # 0.0.23
 
   * Added new functions `is_session_active` and `keep_alive`

@@ -482,6 +482,32 @@ class FusionSolarClient:
         )
 
         return power_status
+    
+    @logged_in
+    def get_current_plant_data(self, plant_id: str) -> dict:
+        """Retrieve the current power status for a specific plant.
+        :return: A dict object containing the whole data
+        """
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/station-real-kpi"
+        params = {
+            "stationDn": plant_id,
+            "clientTime": round(time.time() * 1000),
+            "timeZone": 1,
+            "_": round(time.time() * 1000),
+        }
+
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+
+        # errors in decoding the object generally mean that the login expired
+        # this is handeled by @logged_in
+        power_obj = r.json()
+
+        if "data" not in power_obj:
+            raise FusionSolarException("Failed to retrieve plant data.")
+
+        return power_obj["data"]
 
     @logged_in
     def get_plant_ids(self) -> list:

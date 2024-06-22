@@ -58,6 +58,16 @@ class FusionSolarClientTest(TestCase):
 
         self.assertIsNotNone(status.current_power_kw)
 
+    def test_current_plant_data(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        plant_ids = client.get_plant_ids()
+
+        current_plant_data = client.get_current_plant_data(plant_ids[0])
+
+        self.assertIsNotNone((current_plant_data))
+        self.assertTrue(current_plant_data["yearEnergy"] > 0)
+
     def test_get_plant_stats(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
 
