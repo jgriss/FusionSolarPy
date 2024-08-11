@@ -11,6 +11,8 @@ import requests
 
 from .exceptions import AuthenticationException, CaptchaRequiredException, FusionSolarException
 from .constants import MODULE_SIGNALS
+from .encryption import encrypt_password, get_secure_random
+
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -301,36 +303,61 @@ class FusionSolarClient:
 
     @with_solver
     def _login(self, allow_captcha_exception=True):
+        # retrieve the public key in order to test which loging function to use
+        key_request = self._session.get("https://eu5.fusionsolar.huawei.com/unisso/pubkey")
+
+        if key_request.status_code != 200:
+            _LOGGER.error(f"Failed to retrieve public key. Status code = {key_request.status_code}")
+            raise FusionSolarException("Failed to retrieve public key.")
+
+        key_data = key_request.json()
+
+        # find the correct login function
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
-        params = {
-            "decision": 1,
-            "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
-        }
+        url_params = {}
+        password = self._password
+
+        if key_data['enableEncrypt']:
+            _LOGGER.debug("Using V3 loging function with encrypted passwords")
+            url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v3/validateUser.action"
+            url_params['timeStamp'] = key_data['timeStamp']
+            url_params['nonce'] = get_secure_random()
+            
+            # encrypt the password
+            password = encrypt_password(key_data=key_data, password=password)
+        else:
+            url_params["decision"] = 1
+            url_params["service"] = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
+
         json_data = {
             "organizationName": "",
             "username": self._user,
-            "password": self._password,
+            "password": password,
         }
+
+        # add the verify code if it was set
         if self._captcha_verify_code:
             json_data["verifycode"] = self._captcha_verify_code
             # invalidate verify code after use
             self._captcha_verify_code = None
 
-        # adapt the parameters for the new login procedure
-        if self._huawei_subdomain.startswith("uni"):
-            params = {"timeStamp": 1705091707212, "nonce": "5e9adbab77567a2d5b684b61bad8b3"}
-
         # send the request
-        r = self._session.post(url=url, params=params, json=json_data)
+        r = self._session.post(url=url, params=url_params, json=json_data)
         r.raise_for_status()
 
-        login_response = r.json()
+        try:
+            login_response = r.json()
+        except Exception as e:
+            _LOGGER.error("Retrieved invalid data as login response.")
+            _LOGGER.exception(e)
+            raise FusionSolarException("Failed to process login response")
 
-        # detect the new login procedure
+        # in the new login procedure, an errorCode 470 is pointing to a success
+        # but requires another request to start the session
         if login_response["errorCode"] == "470":
-            _LOGGER.debug("Detected new login procedure, sending additional request...")
-            # this requires fireing off another request
-            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{login_response['respMultiRegionName'][1]}"
+            _LOGGER.debug("New loging procedure successful, sending additional request")
+            target_subdomain = login_response['respMultiRegionName'][1]
+            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{ target_subdomain }"
             new_procedure_response = self._session.get(target_url)
             new_procedure_response.raise_for_status()
 

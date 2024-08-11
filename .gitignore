@@ -1,4 +1,6 @@
 test.py
+test.log
+debug
 .vscode
 *.venv
 tests/credentials.json

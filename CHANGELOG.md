@@ -1,3 +1,7 @@
+# 0.0.25
+
+  * Added support for the new encrypted login function introduced in API version 3
+
 # 0.0.24
 
   * Added new function `get_current_plant_data`

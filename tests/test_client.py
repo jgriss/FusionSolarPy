@@ -20,6 +20,9 @@ class FusionSolarClientTest(TestCase):
         # disable logging for urllib
         logging.getLogger("urllib3").setLevel(logging.ERROR)
 
+        # setup the captcha solver
+        self.captcha_model_path = os.path.join(os.path.dirname(__file__), "..", "models", "captcha_huawei.onnx") 
+
         # load the credentials
         cred_filename = os.path.join(os.path.dirname(__file__), "credentials.json")
 
@@ -46,7 +49,12 @@ class FusionSolarClientTest(TestCase):
 
     def test_login(self):
         # create a new client instance
-        client = FusionSolarClient(self.user, self.password, self.subdomain)
+        client = FusionSolarClient(self.user, self.password, self.subdomain, captcha_model_path=self.captcha_model_path)
+
+        # ensure the loging worked by checking the keep alive data
+        payload = client.keep_alive()
+
+        self.assertIsNotNone(payload)
 
     def test_failed_login(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, "asda", "asda")
