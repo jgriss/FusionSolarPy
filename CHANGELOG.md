@@ -1,3 +1,7 @@
+# 0.0.26
+
+  * Added support for the new `roarand` header which is required for several function calls.
+
 # 0.0.25
 
   * Added support for the new encrypted login function introduced in API version 3
