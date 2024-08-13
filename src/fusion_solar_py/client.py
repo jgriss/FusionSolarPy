@@ -386,6 +386,12 @@ class FusionSolarClient:
 
         self._login()
 
+        # get the payload
+        payload = self.keep_alive()
+
+        if not payload:
+            raise FusionSolarException("Login failed. No payload received from keep-alive.")
+
         # get the main id
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
@@ -477,6 +483,8 @@ class FusionSolarClient:
         
         # get the payload
         if "payload" in response_data:
+            # save the payload as a session header
+            self._session.headers["roarand"] = response_data["payload"]
             return response_data["payload"]
 
         return None
