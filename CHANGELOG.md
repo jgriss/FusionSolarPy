@@ -1,3 +1,35 @@
+# 0.0.26
+
+  * Added support for the new `roarand` header which is required for several function calls.
+
+# 0.0.25
+
+  * Added support for the new encrypted login function introduced in API version 3
+
+# 0.0.24
+
+  * Added new function `get_current_plant_data`
+
+# 0.0.23
+
+  * Added new functions `is_session_active` and `keep_alive`
+  * Adapted the @logged_in wrapper to use this new function
+
+# 0.0.22
+
+  * Fixed detection of incorrect subdomains
+  * Added test for session reuse
+  * Removed deprecation decorators from PowerStatus as these clashed with @property 
+    decorators (functions will still be removed in the future)
+
+# 0.0.21
+
+  * Fixed bug in handling session configuration in new login procedure.
+
+# 0.0.20
+
+  * Added support for new login procedure in "unixxx" subdomains.
+
 # 0.0.14
 
   * Fixed login issue with subdomain "intl"

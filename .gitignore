@@ -1,7 +1,11 @@
 test.py
+test.log
+debug
 .vscode
 *.venv
 tests/credentials.json
 dist
 *.egg-info
 __pycache__
+NEW FEATURES.md
+build

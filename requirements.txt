@@ -1,5 +1,6 @@
 beautifulsoup4>=4.12.2
-numpy>=1.24.3
+numpy<2.0.0
 opencv_python>=4.8.0.76
 requests>=2.31.0
 onnxruntime>=1.14
+cryptography

@@ -11,6 +11,8 @@ import requests
 
 from .exceptions import AuthenticationException, CaptchaRequiredException, FusionSolarException
 from .constants import MODULE_SIGNALS
+from .encryption import encrypt_password, get_secure_random
+
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
@@ -73,23 +75,19 @@ class PowerStatus:
             self.energy_kwh = kwargs['total_power_kwh']
 
     @property
-    @DeprecationWarning
     def total_power_today_kwh(self):
         """The total power produced that day in kWh"""
         _LOGGER.warning(
             "The parameter 'total_power_today_kwh' is deprecated. Please use "
-            "'energy_today_kwh' instead.", DeprecationWarning
-        )
+            "'energy_today_kwh' instead.")
         return self.energy_today_kwh
 
     @property
-    @DeprecationWarning
     def total_power_kwh(self):
         """The total power ever produced"""
         _LOGGER.warning(
             "The parameter 'total_power_kwh' is deprecated. Please use "
-            "'energy_kwh' instead.", DeprecationWarning
-        )
+            "'energy_kwh' instead.")
         return self.energy_kwh
 
     def __repr__(self):
@@ -159,12 +157,21 @@ def logged_in(func):
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
+        # use the is-session-alive feature to check whether the session is active
+        if not self.is_session_active():
+            _LOGGER.debug("No active session. Resetting session and logging in...")
+
+            # reset the session
+            self._session = requests.Session()
+            self._configure_session()
+
         try:
             result = func(self, *args, **kwargs)
-        except (json.JSONDecodeError, requests.exceptions.HTTPError):
-            _LOGGER.info("Logging in")
-            self._configure_session()
-            result = func(self, *args, **kwargs)
+        except (json.JSONDecodeError):
+            # this may indicate that the login failed
+            _LOGGER.error("Login apparently failed. Received invalid response.")
+            raise FusionSolarException("Failed to reset session and login again.")
+        
         return result
 
     return wrapper
@@ -231,7 +238,6 @@ class FusionSolarClient:
             self._session = requests.Session()
         else:
             self._session = session
-        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         self._huawei_subdomain = huawei_subdomain
         # hierarchy: company <- plants <- devices <- subdevices
         self._company_id = None
@@ -316,36 +322,61 @@ class FusionSolarClient:
 
     @with_solver
     def _login(self, allow_captcha_exception=True):
+        # retrieve the public key in order to test which loging function to use
+        key_request = self._session.get("https://eu5.fusionsolar.huawei.com/unisso/pubkey")
+
+        if key_request.status_code != 200:
+            _LOGGER.error(f"Failed to retrieve public key. Status code = {key_request.status_code}")
+            raise FusionSolarException("Failed to retrieve public key.")
+
+        key_data = key_request.json()
+
+        # find the correct login function
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v2/validateUser.action"
-        params = {
-            "decision": 1,
-            "service": f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
-        }
+        url_params = {}
+        password = self._password
+
+        if key_data['enableEncrypt']:
+            _LOGGER.debug("Using V3 loging function with encrypted passwords")
+            url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/v3/validateUser.action"
+            url_params['timeStamp'] = key_data['timeStamp']
+            url_params['nonce'] = get_secure_random()
+            
+            # encrypt the password
+            password = encrypt_password(key_data=key_data, password=password)
+        else:
+            url_params["decision"] = 1
+            url_params["service"] = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth?service=/netecowebext/home/index.html#/LOGIN",
+
         json_data = {
             "organizationName": "",
             "username": self._user,
-            "password": self._password,
+            "password": password,
         }
+
+        # add the verify code if it was set
         if self._captcha_verify_code:
             json_data["verifycode"] = self._captcha_verify_code
             # invalidate verify code after use
             self._captcha_verify_code = None
 
-        # adapt the parameters for the new login procedure
-        if self._huawei_subdomain.startswith("uni"):
-            params = {"timeStamp": 1705091707212, "nonce": "5e9adbab77567a2d5b684b61bad8b3"}
-
         # send the request
-        r = self._session.post(url=url, params=params, json=json_data)
+        r = self._session.post(url=url, params=url_params, json=json_data)
         r.raise_for_status()
 
-        login_response = r.json()
+        try:
+            login_response = r.json()
+        except Exception as e:
+            _LOGGER.error("Retrieved invalid data as login response.")
+            _LOGGER.exception(e)
+            raise FusionSolarException("Failed to process login response")
 
-        # detect the new login procedure
+        # in the new login procedure, an errorCode 470 is pointing to a success
+        # but requires another request to start the session
         if login_response["errorCode"] == "470":
-            _LOGGER.debug("Detected new login procedure, sending additional request...")
-            # this requires fireing off another request
-            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{login_response['respMultiRegionName'][1]}"
+            _LOGGER.debug("New loging procedure successful, sending additional request")
+            target_subdomain = login_response['respMultiRegionName'][1]
+            target_url = f"https://{self._login_subdomain}.fusionsolar.huawei.com{ target_subdomain }"
             new_procedure_response = self._session.get(target_url)
             new_procedure_response.raise_for_status()
 
@@ -369,13 +400,35 @@ class FusionSolarClient:
         # check the login credentials right away
         _LOGGER.debug("Logging into Huawei Fusion Solar API")
 
+        # set the user agent
+        self._session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+
         self._login()
+
+        # get the payload
+        payload = self.keep_alive()
+
+        if not payload:
+            raise FusionSolarException("Login failed. No payload received from keep-alive.")
 
         # get the main id
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/organization/v2/company/current",
             params={"_": round(time.time() * 1000)},
         )
+
+        # the new API returns a 500 exception if the subdomain is incorrect
+        if r.status_code == 500:
+            try:
+                data = r.json()
+
+                if data["exceptionId"] == "Query company failed.":
+                    raise AuthenticationException("Invalid response received. Please check the correct Huawei subdomain.")
+            except json.JSONDecodeError as e:
+                _LOGGER.error("Login validation failed. Failed to process response.")
+                _LOGGER.exception(e)
+                raise AuthenticationException("Failed to log into FusionSolarAPI.")
+
         r.raise_for_status()
 
         # catch an incorrect subdomain
@@ -404,7 +457,7 @@ class FusionSolarClient:
             self._session.headers["roarand"] = r.json()[
                 "csrfToken"
             ]  # needed for post requests, otherwise it will return 401
-        except json.JSONDecodeError:
+        except Exception:
             # this currently does not work in the new login procedure
             pass
 
@@ -453,6 +506,52 @@ class FusionSolarClient:
         )
         return day_data
 
+    def is_session_active(self) -> bool:
+        """Tests whether the current session is active. In the web-based application, this
+        function is triggered every 10 seconds.
+
+        :return: Indicates whether the current session is active.
+        :rtype: bool
+        """
+        if not self._session:
+            return False
+        
+        # send the request
+        r = self._session.get(f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/dpcloud/auth/v1/is-session-alive")
+        r.raise_for_status()
+
+        # get the response
+        response_data = r.json()
+
+        if "code" not in response_data or response_data["code"] != 0:
+            return False
+        else:
+            return True
+        
+    @logged_in
+    def keep_alive(self) -> str:
+        """This function replicates a call sent by the web-based application. Currently,
+        the rate at which this function is called is unclear. It seems to be called around
+        every 30 seconds.
+
+        :return: This function returns the payload returned by the respective call
+        :rtype: str
+        """
+        r = self._session.get(f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/dpcloud/auth/v1/keep-alive")
+        r.raise_for_status()
+
+        response_data = r.json()
+
+        if "code" not in response_data or response_data["code"] != 0:
+            raise FusionSolarException("Failed to set keep alive.")
+        
+        # get the payload
+        if "payload" in response_data:
+            # save the payload as a session header
+            self._session.headers["roarand"] = response_data["payload"]
+            return response_data["payload"]
+
+        return None
 
     @logged_in
     def get_power_status(self) -> PowerStatus:
@@ -470,6 +569,9 @@ class FusionSolarClient:
         
         r = self._session.get(url=url, params=params)
         r.raise_for_status()
+
+        # errors in decoding the object generally mean that the login expired
+        # this is handeled by @logged_in
         power_obj = r.json()
         power_status = PowerStatus(
             current_power_kw=float( power_obj["data"]["currentPower"] ),
@@ -478,6 +580,32 @@ class FusionSolarClient:
         )
 
         return power_status
+    
+    @logged_in
+    def get_current_plant_data(self, plant_id: str) -> dict:
+        """Retrieve the current power status for a specific plant.
+        :return: A dict object containing the whole data
+        """
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/station/v1/overview/station-real-kpi"
+        params = {
+            "stationDn": plant_id,
+            "clientTime": round(time.time() * 1000),
+            "timeZone": 1,
+            "_": round(time.time() * 1000),
+        }
+
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+
+        # errors in decoding the object generally mean that the login expired
+        # this is handeled by @logged_in
+        power_obj = r.json()
+
+        if "data" not in power_obj:
+            raise FusionSolarException("Failed to retrieve plant data.")
+
+        return power_obj["data"]
 
     @logged_in
     def get_plant_ids(self) -> list:
@@ -755,7 +883,8 @@ class FusionSolarClient:
             params={
                 "stationDn": plant_id,
                 "timeDim": 2,
-                "queryTime": query_time,
+                "queryTime": query_time, # TODO: this may have changed to micro-seconds ie. timestamp * 1000
+                # dateTime=2024-03-07 00:00:00
                 "timeZone": 2,  # 1 in no daylight
                 "timeZoneStr": "Europe/Vienna",
                 "_": round(time.time() * 1000),

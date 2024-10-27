@@ -56,6 +56,10 @@ print(f"Current power: {stats.current_power_kw} kW")
 print(f"Total energy today: {stats.energy_today_kwh} kWh")
 print(f"Total energy: {stats.energy_kwh} kWh")
 
+# NOTE: Since an update of the API, this data does no longer seem
+#       to be up-to-date. The most recent data only seems to be
+#       available on th plant level (see below)
+
 # log out - just in case
 client.log_out()
 ```
@@ -74,11 +78,24 @@ client = client = FusionSolarClient(
   huawei_subdomain="subdomain"
 )
 
+# if you only need an overview of the current status of
+# your plant(s) you can use the get_plant_list function
+plant_overview = client.get_station_list()
+
+# get the current power of your first plant
+print(f"Current power production: { plant_overview[0]['currentPowwer'] }")
+
+# alternatively, you can get time resolved data for each plant:
 
 # get the plant ids
 plant_ids = client.get_plant_ids()
 
 print(f"Found {len(plant_ids)} plants")
+
+# get the basic (current) overview data for the plant
+plant_overview = client.get_current_plant_data(plant_ids[0])
+
+print(str(plant_overview))
 
 # get the data for the first plant
 plant_data = client.get_plant_stats(plant_ids[0])
@@ -182,6 +199,13 @@ with open('session.pkl', 'wb') as f:
 with open('session.pkl', 'rb') as f:
     session = pickle.load(f)
 ```
+
+### Keeping a session alive
+
+The new API version seems to use explicit functions to keep a session alive. Their usage is currently only derived from the web application. In order to support these calls, two new functions were added to the library in version 0.0.23.
+
+  * **is_session_active**: This checks, whether the session is still active and should be called around every 10 seconds.
+  * **keep_alive**: Potentially, this call tells the API to no discard the session. The web app calls this end-point around every 30 seconds.
 
 ## Available plant data / stats
 

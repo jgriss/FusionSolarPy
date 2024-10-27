@@ -20,6 +20,9 @@ class FusionSolarClientTest(TestCase):
         # disable logging for urllib
         logging.getLogger("urllib3").setLevel(logging.ERROR)
 
+        # setup the captcha solver
+        self.captcha_model_path = os.path.join(os.path.dirname(__file__), "..", "models", "captcha_huawei.onnx") 
+
         # load the credentials
         cred_filename = os.path.join(os.path.dirname(__file__), "credentials.json")
 
@@ -46,7 +49,12 @@ class FusionSolarClientTest(TestCase):
 
     def test_login(self):
         # create a new client instance
-        client = FusionSolarClient(self.user, self.password, self.subdomain)
+        client = FusionSolarClient(self.user, self.password, self.subdomain, captcha_model_path=self.captcha_model_path)
+
+        # ensure the loging worked by checking the keep alive data
+        payload = client.keep_alive()
+
+        self.assertIsNotNone(payload)
 
     def test_failed_login(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, "asda", "asda")
@@ -57,6 +65,16 @@ class FusionSolarClientTest(TestCase):
         status = client.get_power_status()
 
         self.assertIsNotNone(status.current_power_kw)
+
+    def test_current_plant_data(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        plant_ids = client.get_plant_ids()
+
+        current_plant_data = client.get_current_plant_data(plant_ids[0])
+
+        self.assertIsNotNone((current_plant_data))
+        self.assertTrue(current_plant_data["yearEnergy"] > 0)
 
     def test_get_plant_stats(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
@@ -140,3 +158,37 @@ class FusionSolarClientTest(TestCase):
 
     def test_incorrect_subdomain(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, self.user, self.password, "region04eu5")
+
+    def test_session_reuse(self):
+        session = requests.Session()
+
+        client = FusionSolarClient(self.user, self.password, self.subdomain, session=session)
+
+        stats = client.get_power_status()
+
+        self.assertIsNotNone(stats)
+
+        # create a second client using the session
+        client2 = FusionSolarClient(self.user, self.password, self.subdomain, session=session)
+
+        stats2 = client2.get_power_status()
+
+        self.assertIsNotNone(stats2)
+
+    def test_session_active(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        # now the session should be fine
+        self.assertTrue(client.is_session_active())
+
+        # add an invalid session object
+        client = FusionSolarClient(self.user, self.password, self.subdomain, session=requests.Session())
+
+        self.assertFalse(client.is_session_active())        
+
+    def test_keep_alive(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        payload = client.keep_alive()
+
+        self.assertIsNotNone(payload)
