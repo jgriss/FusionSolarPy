@@ -52,7 +52,7 @@ def encrypt_password(key_data: dict, password: str) -> str:
     try:
         public_key = serialization.load_pem_public_key(
             key_data['pubKey'].encode(),
-            backend=default_backend
+            backend=default_backend()
         )
     except Exception as e:
         _LOGGER.error("Failed to load public key.")
