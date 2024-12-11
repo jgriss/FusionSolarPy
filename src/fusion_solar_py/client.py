@@ -634,6 +634,16 @@ class FusionSolarClient:
         :return: The basic stats as a BatteryStatus object
         """
         battery_stats = self.get_battery_status(battery_id)
+        if battery_stats[4]["realValue"] == "-":
+            battery_stats[4]["realValue"] = 0
+        if battery_stats[5]["realValue"] == "-":
+            battery_stats[5]["realValue"] = 0
+        if battery_stats[6]["realValue"] == "-":
+            battery_stats[6]["realValue"] = 0
+        if battery_stats[7]["realValue"] == "-":
+            battery_stats[7]["realValue"] = 0
+        if battery_stats[8]["realValue"] == "-":
+            battery_stats[8]["realValue"] = 0
         battery_status = BatteryStatus(
             state_of_charge=float(battery_stats[8]["realValue"]),
             rated_capacity=float(battery_stats[2]["realValue"]),
