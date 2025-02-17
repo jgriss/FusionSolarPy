@@ -3,6 +3,7 @@
 import logging
 import time
 from datetime import datetime
+from decimal import Decimal
 from functools import wraps
 import json
 from typing import Any, Optional
@@ -16,6 +17,21 @@ from .encryption import encrypt_password, get_secure_random
 
 # global logger object
 _LOGGER = logging.getLogger(__name__)
+
+DEC_PRECISION = Decimal('1.00000000')
+MAX_JS_NUMBER = Decimal('1.7976931348623157E308')
+def _parse_float(value: str) -> float:
+    try:
+        _d = Decimal(value)
+        if _d == MAX_JS_NUMBER:
+            _LOGGER.warning("parsing MAX JS NUMBER returning 0.0: '%s'", value)
+            return 0.0
+
+        return float(_d.quantize(DEC_PRECISION))
+    except Exception as exc:
+        _LOGGER.error("cannot parse float from json: '%s'", value, exc_info=True)
+        return 0.0
+
 
 
 class PowerStatus:
@@ -590,8 +606,9 @@ class FusionSolarClient:
         # simply return the original object list
         return obj_tree["data"]["list"]
 
+
     @logged_in
-    def get_device_ids(self) -> dict:
+    def get_device_ids(self) -> list:
         """gets the devices associated to a given parent_id (can be a plant or a company/account)
         returns a dictionary mapping device_type to device_id"""
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/config/device/v1/device-list"
@@ -604,10 +621,78 @@ class FusionSolarClient:
         r.raise_for_status()
         device_data = r.json()
 
-        device_key = {}
+        devices = []
         for device in device_data["data"]:
-            device_key[device["mocTypeName"]] = device["dn"]
-        return device_key
+            devices += [dict(type=device["mocTypeName"], deviceDn=device["dn"])]
+        return devices
+    @logged_in
+    def get_historical_data(self, signal_ids: list[str] = ['30014', '30016', '30017'], device_dn:str = None, date: datetime = datetime.now() ) -> dict:
+        """retrieves historical data for specified signals and device
+            possible signal_ids:
+            30017 : produced DC in kW
+            30016 : daily production in kWh
+            30014 : produced AC in kW
+
+            :return: historical data for requested signals and device
+            :rtype: dict
+            """
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data"
+        params = ()
+        for signal_id in signal_ids:
+            params += (("signalIds", signal_id),)
+
+        params += (
+            ("deviceDn", device_dn),  #
+            ("date", int(date.timestamp() * 1000)),
+            ("_", round(time.time() * 1000)),
+        )
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+
+        return r.json(parse_float=_parse_float)
+
+    @logged_in
+    def get_real_time_data(self, device_dn: str = None) -> dict:
+        """retrieves real time data for requested device
+
+            :return: real time data for requested signals and device
+            :rtype: dict
+
+            """
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-realtime-data"
+        params = (
+            ("deviceDn", device_dn),  #
+            ("_", round(time.time() * 1000)),
+        )
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+
+        return r.json()
+
+
+    @logged_in
+    def get_alarm_data(self, device_dn: str = None) -> dict:
+        """retrieves alarm data for device id
+            30017 : produced DC in W
+            30014 : produced AC in W
+
+            :return: alarm data for device id
+            :rtype: dict
+            https://uni004eu5.fusionsolar.huawei.com/rest/pvms/fm/v1/query
+            """
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/fm/v1/query"
+        request_data = {"dataType":"CURRENT",
+                        "domainType":"OC_SOLAR",
+                        "pageNo":1,
+                        "pageSize":10,
+                        "nativeMeDn":device_dn}
+        r = self._session.post(url=url, json=request_data)
+        r.raise_for_status()
+
+        return r.json()
 
 
     @logged_in
@@ -764,11 +849,12 @@ class FusionSolarClient:
         if power_setting not in power_setting_options:
             raise ValueError("Unknown power setting")
 
-        device_key = self.get_device_ids()
+        device_ids = self.get_device_ids()
+        dongle_id = list(filter(lambda e: e['type'] == 'Dongle', device_ids))[0]['id']
 
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/deviceExt/set-config-signals"
         data = {
-            "dn": device_key["Dongle"],  # power control needs to be done in the dongle
+            "dn": dongle_id,  # power control needs to be done in the dongle
             # 230190032 stands for "Active Power Control"
             "changeValues": f'[{{"id":"230190032","value":"{power_setting_options[power_setting]}"}}]',
         }
