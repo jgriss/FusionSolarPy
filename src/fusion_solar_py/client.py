@@ -675,9 +675,6 @@ class FusionSolarClient:
     @logged_in
     def get_alarm_data(self, device_dn: str = None) -> dict:
         """retrieves alarm data for device id
-            30017 : produced DC in W
-            30014 : produced AC in W
-
             :return: alarm data for device id
             :rtype: dict
             https://uni004eu5.fusionsolar.huawei.com/rest/pvms/fm/v1/query
