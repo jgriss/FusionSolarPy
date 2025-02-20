@@ -83,7 +83,7 @@ client = client = FusionSolarClient(
 plant_overview = client.get_station_list()
 
 # get the current power of your first plant
-print(f"Current power production: { plant_overview[0]['currentPowwer'] }")
+print(f"Current power production: { plant_overview[0]['currentPower'] }")
 
 # alternatively, you can get time resolved data for each plant:
 
@@ -113,7 +113,7 @@ print(f"Last battery charge at {last_values['chargePower']['time']}: {last_value
 
 # Additionally, if you have a meter installed you can get additional statistics
 print(f"Total power consumption (today): {last_values['totalUsePower']} kWh")
-print(f"Total produced power (today): {last_values['totalPower']} kWh")
+print(f"Total produced power (today): {last_values['totalProductPower']} kWh")
 print(f"Produced power consumed (today): {last_values['totalSelfUsePower']} kWh")
 print(f"Relative amount of used power bought from grid: {last_values['buyPowerRatio']}%")
 
