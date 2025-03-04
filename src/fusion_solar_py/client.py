@@ -654,7 +654,7 @@ class FusionSolarClient:
         return battery_status
 
     @logged_in
-    def get_battery_day_stats(self, battery_id: str) -> dict:
+    def get_battery_day_stats(self, battery_id: str,query_time: int = None) -> dict:
         """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of
         the battery for the current day.
         :param battery_id: The battery's id
@@ -662,6 +662,8 @@ class FusionSolarClient:
         :return: The complete data structure as a dict
         """
         current_time = round(time.time() * 1000)
+        if query_time is not None:
+            current_time = query_time
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
             params={
