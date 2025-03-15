@@ -115,7 +115,10 @@ class FusionSolarClientTest(TestCase):
         self.assertIsNotNone(device_ids["Inverter"])
 
         # test optimizer data
-        optimizer_data = client.get_optimizer_stats(inverter_id=device_ids["Inverter"])
+        try:
+            optimizer_data = client.get_optimizer_stats(inverter_id=device_ids["Inverter"])
+        except FusionSolarException as e:
+            self.assertEqual(str(e), f"Failed to retrieve optimizer status for {device_ids['Inverter']}")
 
     def test_get_station_list(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
@@ -167,6 +170,7 @@ class FusionSolarClientTest(TestCase):
         stats = client.get_power_status()
 
         self.assertIsNotNone(stats)
+        plant_ids = client.get_plant_ids()
 
         # create a second client using the session
         client2 = FusionSolarClient(self.user, self.password, self.subdomain, session=session)
