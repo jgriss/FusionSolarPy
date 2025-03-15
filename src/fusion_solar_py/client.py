@@ -403,7 +403,7 @@ class FusionSolarClient:
             try:
                 data = r.json()
 
-                if data["exceptionId"] == "Query company failed.":
+                if data["exceptionId"] == "Query company failed." or data["exceptionId"] == "bad status":
                     raise AuthenticationException("Invalid response received. Please check the correct Huawei subdomain.")
             except json.JSONDecodeError as e:
                 _LOGGER.error("Login validation failed. Failed to process response.")
@@ -944,6 +944,12 @@ class FusionSolarClient:
         )
         r.raise_for_status()
         optimizer_data = r.json()
+
+        # check for an error - this seems to happen if no optimizer is present
+        if 'exceptionType' in optimizer_data:
+            raise FusionSolarException(
+                f"Failed to retrieve optimizer status for {inverter_id}"
+            )
 
         if not optimizer_data["success"] or "data" not in optimizer_data:
             raise FusionSolarException(
