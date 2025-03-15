@@ -1,3 +1,13 @@
+# 0.0.27
+
+  * Added tests for README examples
+  * Added query time to get_battery_day_stats (by jgonzalezzitu)
+  * Updated client error handling due to new FusionSolar error messages
+  * Fixed str to float converion in battery stats (by @MatteoGheza)
+  * Fixed typos in README
+  * Added functions get_historical_data and get_real_time_data (by Nikolai Raitsev)
+  * Fixed issu in encryption.py (by @MatteoGheza and ATNALDC)
+
 # 0.0.26
 
   * Added support for the new `roarand` header which is required for several function calls.
