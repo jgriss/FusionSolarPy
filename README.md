@@ -121,9 +121,13 @@ print(f"Relative amount of used power bought from grid: {last_values['buyPowerRa
 device_ids = client.get_device_ids()
 inverters= list(filter(lambda e: e['type'] == 'Inverter', device_ids))
 for inverter in inverters:
-    for x in client.get_optimizer_stats(inverter['deviceDn']):
-        print(f"{x['optName']}: {x['moStatus']} {x['runningStatus']}: {x['outputPower']} W /" +
-              f" {x['inputVoltage']} V / {x['inputCurrent']} A / {x['temperature']} C")
+    try:
+        for x in client.get_optimizer_stats(inverter['deviceDn']):
+            print(f"{x['optName']}: {x['moStatus']} {x['runningStatus']}: {x['outputPower']} W /" +
+                f" {x['inputVoltage']} V / {x['inputCurrent']} A / {x['temperature']} C")
+    except FusionSolarException as e:
+        # This happens if there are not optimizers present
+        print(f"No opimitizer available for {inverter['deviceDn']}")
 
 
 # log out - just in case
