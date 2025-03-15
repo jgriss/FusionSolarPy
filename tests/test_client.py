@@ -112,13 +112,17 @@ class FusionSolarClientTest(TestCase):
         # get the device ids
         device_ids = client.get_device_ids()
 
-        self.assertIsNotNone(device_ids["Inverter"])
+        self.assertTrue(len(device_ids) > 0)
+        inverters = list(filter(lambda e: e['type'] == 'Inverter', device_ids))
+        self.assertTrue(len(inverters) > 0)
+        inverter_id = inverters[0]['deviceDn']
+        self.assertIsNotNone(inverter_id)
 
         # test optimizer data
         try:
-            optimizer_data = client.get_optimizer_stats(inverter_id=device_ids["Inverter"])
+            optimizer_data = client.get_optimizer_stats(inverter_id=inverter_id)
         except FusionSolarException as e:
-            self.assertEqual(str(e), f"Failed to retrieve optimizer status for {device_ids['Inverter']}")
+            self.assertEqual(str(e), f"Failed to retrieve optimizer status for {inverter_id}")
 
     def test_get_station_list(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
