@@ -654,11 +654,15 @@ class FusionSolarClient:
         return battery_status
 
     @logged_in
-    def get_battery_day_stats(self, battery_id: str,query_time: int = None) -> dict:
+    def get_battery_day_stats(self, battery_id: str, query_time: int = None) -> dict:
         """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of
         the battery for the current day.
         :param battery_id: The battery's id
         :type battery_id: str
+        :param query_time: If set, must be set to 00:00:00 of the day the data should
+                           be fetched for. If not set, retrieves the data for the
+                           current day.
+        :type query_time: int
         :return: The complete data structure as a dict
         """
         current_time = round(time.time() * 1000)
