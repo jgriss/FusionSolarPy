@@ -772,6 +772,54 @@ class FusionSolarClient:
 
         return battery_data["data"]
 
+        @logged_in
+    def get_inverter_day_stats(self, inverter_id: str, signalIds: [str] = ["30007"],query_time: int = None) -> dict:
+        """Retrieves data of
+        the inverter for the current day (or another day).
+        :param inverter_id: The inverter's id
+        : param signalIds: A list of the data you want (as default the 'current' data)
+            30001: Grid voltage (V)
+            30007: Grid current (A)
+            30011: Temperature  (ºC)
+            30012: Power factor
+            30013: Electrical grid frequency (Hz)
+            30014: Active power (kW)
+            30015: Reactive power (kVar)
+            30016: Daily energy (kWh)
+            30017: Total input power (kW)
+            31001: PV1 input voltage (V)
+            31002: PV1 input current (A)
+            31004: PV2 input voltage (V)
+            31005: PV2 input current (A)
+            32001: Cumulative DC energy MPPT 1 (kWh) 
+            32002: Cumulative DC energy MPPT 2 (kWh)
+        :type inverter_id: str
+        :type signalIds: [str]
+        :return: The complete data structure as a dict
+        """
+        current_time = round(time.time() * 1000)
+        if query_time is not None:
+            current_time = query_time
+        r = self._session.get(
+            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
+            params={
+                "signalIds": signalIds,
+                "deviceDn": inverter_id,
+                "date": current_time,
+                "_": current_time,
+            },
+        )
+        r.raise_for_status()
+        battery_data = r.json()
+
+        if not battery_data["success"] or "data" not in battery_data:
+            raise FusionSolarException(
+                f"Failed to retrieve battery day stats for {inverter_id}"
+            )
+
+
+        return battery_data["data"]
+        
 
     @logged_in
     def get_battery_module_stats(
