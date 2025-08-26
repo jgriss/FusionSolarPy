@@ -736,7 +736,7 @@ class FusionSolarClient:
         return battery_status
 
     @logged_in
-    def get_battery_day_stats(self, battery_id: str, signalIds: [str] = ["30005", "30007"],query_time: int = None) -> dict:
+    def get_battery_day_stats(self, battery_id: str, signalIds: list[str] = ["30005", "30007"],query_time: int = None) -> dict:
         """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of
         the battery for the current day.
         :param battery_id: The battery's id
@@ -784,8 +784,8 @@ class FusionSolarClient:
 
         return battery_data["data"]
 
-        @logged_in
-    def get_inverter_day_stats(self, inverter_id: str, signalIds: [str] = ["30007"],query_time: int = None) -> dict:
+    @logged_in
+    def get_inverter_day_stats(self, inverter_id: str, signalIds: list[str] = ["30007"],query_time: int = None) -> dict:
         """Retrieves data of
         the inverter for the current day (or another day).
         :param inverter_id: The inverter's id
@@ -809,9 +809,12 @@ class FusionSolarClient:
         :type signalIds: [str]
         :return: The complete data structure as a dict
         """
-        current_time = round(time.time() * 1000)
+        # either use the user supplied time or the current one
         if query_time is not None:
             current_time = query_time
+        else:
+            current_time = round(time.time() * 1000)
+
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
             params={
@@ -821,16 +824,16 @@ class FusionSolarClient:
                 "_": current_time,
             },
         )
-        r.raise_for_status()
-        battery_data = r.json()
 
-        if not battery_data["success"] or "data" not in battery_data:
+        r.raise_for_status()
+        inverter_data = r.json()
+
+        if not inverter_data["success"] or "data" not in inverter_data:
             raise FusionSolarException(
                 f"Failed to retrieve battery day stats for {inverter_id}"
             )
 
-
-        return battery_data["data"]
+        return inverter_data["data"]
         
 
     @logged_in

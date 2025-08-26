@@ -1,3 +1,8 @@
+# 0.0.28
+
+  * Added new function get_inverter_day_stats (by jgonzalezzitu)
+  * Extended get_battery_day_stats function to retrieve more data (by jgonzalezzitu)
+
 # 0.0.27
 
   * Added tests for README examples
