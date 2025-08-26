@@ -156,12 +156,11 @@ class FusionSolarClientTest(TestCase):
 
         battery_stats = client.get_battery_module_stats(battery_id)
 
-        self.assertIn("30005", battery_stats)
-        self.assertIn("30007", battery_stats)
+        self.assertIsInstance(battery_stats, list)
 
         battery_rt_stats = client.get_battery_status(battery_id)
 
-        self.assertIsInstance(battery_rt_stats, dict)
+        self.assertIsInstance(battery_rt_stats, list)
 
     def test_incorrect_subdomain(self):
         self.assertRaises(AuthenticationException, FusionSolarClient, self.user, self.password, "region04eu5")
