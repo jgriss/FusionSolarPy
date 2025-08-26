@@ -736,15 +736,18 @@ class FusionSolarClient:
         return battery_status
 
     @logged_in
-    def get_battery_day_stats(self, battery_id: str, query_time: int = None) -> dict:
+    def get_battery_day_stats(self, battery_id: str, signalIds: [str] = ["30005", "30007"],query_time: int = None) -> dict:
         """Retrieves the SOC (state of charge) in % and charge/discharge power in kW of
         the battery for the current day.
         :param battery_id: The battery's id
+        :param signalIds: A list of the data you want (as default the 'current' (SOC and charge/discharge power) data)
+            30001: Charging power (kW)
+            30002: Discharging power (kW)
+            30005: Charge/Discharge power (kW)
+            30006: Battery voltage (V)
+            30007: SOC (state of charge in %)
+        :pram query_time: The time for which you want to retrieve the data. If not set, the current time will be used
         :type battery_id: str
-        :param query_time: If set, must be set to 00:00:00 of the day the data should
-                           be fetched for. If not set, retrieves the data for the
-                           current day.
-        :type query_time: int
         :return: The complete data structure as a dict
         """
         current_time = round(time.time() * 1000)
@@ -753,7 +756,7 @@ class FusionSolarClient:
         r = self._session.get(
             url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-history-data",
             params={
-                "signalIds": ["30005", "30007"], # 30005 is Charge/Discharge power, 30007 is SOC, state of charge in %
+                "signalIds": signalIds, # 30005 is Charge/Discharge power, 30007 is SOC, state of charge in %
                 "deviceDn": battery_id,
                 "date": current_time,
                 "_": current_time,
@@ -767,8 +770,17 @@ class FusionSolarClient:
                 f"Failed to retrieve battery day stats for {battery_id}"
             )
 
-        battery_data["data"]["30005"]["name"] = "Charge/Discharge power"
-        battery_data["data"]["30007"]["name"] = "SOC"
+        if "30001" in signalIds:
+            battery_data["data"]["30001"]["name"] = "Charging power"
+        if "30002" in signalIds:
+            battery_data["data"]["30002"]["name"] = "Discharging power"
+        if "30005" in signalIds:
+            battery_data["data"]["30005"]["name"] = "Charge/Discharge power"
+        if "30006" in signalIds:
+            battery_data["data"]["30006"]["name"] = "Battery voltage"
+        if "30007" in signalIds:
+            battery_data["data"]["30007"]["name"] = "SOC"
+        
 
         return battery_data["data"]
 
