@@ -428,7 +428,7 @@ class FusionSolarClient:
         )
 
         # the new API returns a 500 exception if the subdomain is incorrect
-        if r.status_code == 500:
+        if r.status_code in [500, 400]:
             try:
                 data = r.json()
 
@@ -574,6 +574,45 @@ class FusionSolarClient:
         return power_obj["data"]
 
     @logged_in
+    def get_device_data(self, device_id: str, signal_ids: list[int] | list[str] = None) -> dict:
+        """
+        Retrieves measurements for the specified device and signals.
+        Each MPPT ID follow this logic :
+            Start at 11001. This ID corresponds to the voltage (V) of the first MPPT.
+            11002 corresponds to the intensity (A) of the first MPPT.
+            Add 2 to that (ends up being 11004) corresponds to the voltage (V) of the second MPPT.
+            11005 corresponds to the second MPPT's intensity (A)
+            And so on.
+        :param device_id: the device ID
+        :param signal_ids: signal ids to query
+
+        :return: a dict containing the asked data
+        """
+
+        if signal_ids is None:
+            # generates the 20 first MPPT IDs for voltage and intensity.
+            signal_ids = [val for i in range(10) for val in (11001 + i * 3, 11002 + i * 3)]
+
+        url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/pvms/web/device/v1/device-real-kpi"
+        params = {
+            "deviceDn": device_id,
+            "signalIds": signal_ids,
+            "_": round(time.time() * 1000),
+        }
+
+        r = self._session.get(url=url, params=params)
+        r.raise_for_status()
+
+        # errors in decoding the object generally mean that the login expired
+        # this is handeled by @logged_in
+        data_obj = r.json()
+
+        if "data" not in data_obj:
+            raise FusionSolarException("Failed to retrieve plant data.")
+
+        return data_obj["data"]
+
+    @logged_in
     def get_plant_ids(self) -> list:
         """Get the ids of all available stations linked
            to this account
@@ -621,12 +660,13 @@ class FusionSolarClient:
 
 
     @logged_in
-    def get_device_ids(self) -> list:
-        """gets the devices associated to a given parent_id (can be a plant or a company/account)
+    def get_device_ids(self, parent_id: str = None) -> list:
+        """gets the devices associated to a given parent_id
+        :param parent_id: the parent_id (can be a plant or a company/account)
         returns a dictionary mapping device_type to device_id"""
         url = f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/rest/neteco/web/config/device/v1/device-list"
         params = {
-            "conditionParams.parentDn": self._company_id,  # can be a plant or company id
+            "conditionParams.parentDn": self._company_id if parent_id is None else parent_id,  # can be a plant or company id
             "conditionParams.mocTypes": "20814,20815,20816,20819,20822,50017,60066,60014,60015,23037",  # specifies the types of devices
             "_": round(time.time() * 1000),
         }
@@ -638,6 +678,8 @@ class FusionSolarClient:
         for device in device_data["data"]:
             devices += [dict(type=device["mocTypeName"], deviceDn=device["dn"])]
         return devices
+
+
     @logged_in
     def get_historical_data(self, signal_ids: list[str] = ['30014', '30016', '30017'], device_dn:str = None, date: datetime = datetime.now() ) -> dict:
         """retrieves historical data for specified signals and device

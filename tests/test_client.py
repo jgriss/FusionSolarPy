@@ -76,6 +76,20 @@ class FusionSolarClientTest(TestCase):
         self.assertIsNotNone((current_plant_data))
         self.assertTrue(current_plant_data["yearEnergy"] > 0)
 
+    def test_get_device_data(self):
+        client = FusionSolarClient(self.user, self.password, self.subdomain)
+
+        device_ids = client.get_device_ids()
+        inverters = list(filter(lambda e: e['type'] == 'Inverter', device_ids))
+        inverter_id = inverters[0]['deviceDn']
+
+        device_data = client.get_device_data(inverter_id, [11001, 11002])
+
+        self.assertIsNotNone(device_data.get("signals"))
+        signals = device_data["signals"]
+        self.assertIsNotNone(signals.get("11001"))
+        self.assertIsNotNone(signals.get("11002"))
+
     def test_get_plant_stats(self):
         client = FusionSolarClient(self.user, self.password, self.subdomain)
 
@@ -111,6 +125,7 @@ class FusionSolarClientTest(TestCase):
 
         # get the device ids
         device_ids = client.get_device_ids()
+        plant_devices_ids = client.get_device_ids(plant_ids[0])
 
         self.assertTrue(len(device_ids) > 0)
         inverters = list(filter(lambda e: e['type'] == 'Inverter', device_ids))
