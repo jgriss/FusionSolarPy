@@ -41,7 +41,7 @@ class FusionSolarClientTest(TestCase):
         elif os.environ["TEST_USER"]:
             self.user = os.environ.get("TEST_USER")
             self.password = os.environ.get("TEST_PASSWORD")
-            self.subdomain = "uni001eu5.fusionsolar"
+            self.subdomain = "uni001eu5"
         else:
             raise Exception("Tests require a 'credentials.json' file in the 'tests' directory. "
                             "This file must contain a dict with a 'username' and 'password' which "
