@@ -1,3 +1,7 @@
+# 0.1.1
+
+  * Adapted to a change in the API. roarand endpoint no longer seems to be supported and was removed.
+
 # 0.1.0
 
   * **BREAKING CHANGE**: Session reuse was changed to a more robust method. 
