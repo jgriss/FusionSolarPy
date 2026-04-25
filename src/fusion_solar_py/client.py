@@ -428,13 +428,13 @@ class FusionSolarClient:
         )
 
         # the new API returns a 500 exception if the subdomain is incorrect
-        if r.status_code == 500:
+        if r.status_code == 500 or r.status_code == 400:
             try:
                 data = r.json()
 
                 if data["exceptionId"] == "Query company failed." or data["exceptionId"] == "bad status":
                     raise AuthenticationException("Invalid response received. Please check the correct Huawei subdomain.")
-            except json.JSONDecodeError as e:
+            except (json.JSONDecodeError, requests.exceptions.HTTPError) as e:
                 _LOGGER.error("Login validation failed. Failed to process response.")
                 _LOGGER.exception(e)
                 raise AuthenticationException("Failed to log into FusionSolarAPI.")
@@ -456,20 +456,6 @@ class FusionSolarClient:
             )
 
         self._company_id = r.json()["data"]["moDn"]
-
-        # get the roarand, which is needed for non-GET requests, thus to change device settings
-        r = self._session.get(
-            url=f"https://{self._huawei_subdomain}.fusionsolar.huawei.com/unisess/v1/auth/session"
-        )
-        r.raise_for_status()
-
-        try:
-            self._session.headers["roarand"] = r.json()[
-                "csrfToken"
-            ]  # needed for post requests, otherwise it will return 401
-        except Exception:
-            # this currently does not work in the new login procedure
-            pass
 
     def is_session_active(self) -> bool:
         """Tests whether the current session is active. In the web-based application, this
