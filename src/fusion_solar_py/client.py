@@ -285,33 +285,33 @@ class FusionSolarClient:
         """
         # check if the import is available
         try:
-            import bs4
+            import bs4  # noqa: F401
         except ImportError:
             _LOGGER.error("Required libraries for CAPTCHA solving are not available. Please install the package using pip install fusion_solar_py[captcha].")
             raise Exception("Required libraries for CAPTCHA solving are not available.")
 
         _LOGGER.debug("Checking if captcha is required")
 
-        url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/"
-        params = {
-            "service": "%2Funisess%2Fv1%2Fauth%3Fservice%3D%252Fnetecowebext%252Fhome%252Findex.html",
-        }
-        r = self._session.get(url=url, params=params)
+        # NOTE: the login page is served as a React SPA nowadays - the static
+        # HTML response never contains the "verificationCodeInput" element
+        # (it is only added to the DOM client-side by JS after the page's
+        # bundle runs), so the previous bs4-based scraping check below
+        # always returned False, even on accounts where a captcha genuinely
+        # is required. This function is only ever invoked by the
+        # with_solver decorator after a CaptchaRequiredException was raised
+        # from _login(), i.e. after the login response JSON itself already
+        # told us "verifyCodeCreate": true - so we can skip the HTML check
+        # entirely and go straight to fetching+solving the captcha image.
+        # See https://github.com/jgriss/FusionSolarPy/issues/53
+        captcha = self._get_captcha()
+        self._init_solver()
+        self._captcha_verify_code = self._captcha_solver.solve_captcha(captcha)
+        r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
+                               data={"verifycode": self._captcha_verify_code, "index": 0})
         r.raise_for_status()
-        soup = bs4.BeautifulSoup(r.text, 'html.parser')
-        captcha_exists = soup.find(id="verificationCodeInput")
-        if captcha_exists:
-            captcha = self._get_captcha()
-            self._init_solver()
-            self._captcha_verify_code = self._captcha_solver.solve_captcha(captcha)
-            r = self._session.post(url=f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/preValidVerifycode",
-                                   data={"verifycode": self._captcha_verify_code, "index": 0})
-            r.raise_for_status()
-            if r.text != "success":
-                raise AuthenticationException("Login failed: captcha prevalidverify fail.")
-            return True
-        else:
+        if r.text != "success":
             return False
+        return True
 
     def _get_captcha(self):
         url = f"https://{self._login_subdomain}.fusionsolar.huawei.com/unisso/verifycode"
